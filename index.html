@@ -1,0 +1,2100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sortagram — organize your saved reels & posts</title>
+<meta name="description" content="Sortagram is a free, private tool for organizing your saved Instagram reels, TikToks, and posts by topic and creator. No accounts, no tracking — everything runs locally in your browser.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://sortagram.vercel.app/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Sortagram — organize your saved reels & posts">
+<meta property="og:description" content="A free, private tool for organizing your saved Instagram reels, TikToks, and posts by topic and creator. No accounts, no tracking.">
+<meta property="og:url" content="https://sortagram.vercel.app/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Sortagram — organize your saved reels & posts">
+<meta name="twitter:description" content="A free, private tool for organizing your saved Instagram reels, TikToks, and posts by topic and creator. No accounts, no tracking.">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication","name":"Sortagram","description":"A free, private tool for organizing saved Instagram reels, TikToks, and posts by topic and creator. Runs entirely in the browser with no accounts or tracking.","applicationCategory":"UtilitiesApplication","operatingSystem":"Any (web browser)","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+</script>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='8' width='18' height='20' rx='4' fill='%23E6E6EC'/%3E%3Crect x='10' y='4' width='18' height='24' rx='4' fill='%23FF5A4E'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --paper:#F5F6F8; --surface:#FFFFFF; --surface-2:#FBFBFC; --border:#E6E6EC;
+    --ink:#14141B; --ink-soft:#6B6B76; --ink-faint:#6F6F79;
+    --accent:#FF5A4E; --accent-ink:#FFFFFF; --accent-soft:#FFE9E6;
+    --accent-fill:#C8433A;
+    --danger:#DC2626; --danger-ink:#FFFFFF;
+    --radius-lg:20px; --radius-md:12px; --radius-sm:8px; --radius-pill:999px;
+    --shadow-sm:0 1px 3px rgba(20,20,27,.07);
+    --shadow-md:0 8px 24px rgba(20,20,27,.09);
+    --shadow-lg:0 24px 60px rgba(20,20,27,.22);
+    --font-display:Georgia,'Iowan Old Style','Palatino Linotype','Times New Roman',serif;
+    --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --dur:.18s;
+  }
+  [data-theme="dark"]{
+    --paper:#0F0E12; --surface:#1A191F; --surface-2:#201F26; --border:#2B2A32;
+    --ink:#F2F2F5; --ink-soft:#9C9CA6; --ink-faint:#7B7B85;
+    --accent:#FF6B5E; --accent-ink:#14141B; --accent-soft:#3A211D;
+    --accent-fill:#FF6B5E;
+    --danger:#F87171; --danger-ink:#14141B;
+    --shadow-sm:0 1px 3px rgba(0,0,0,.4);
+    --shadow-md:0 8px 24px rgba(0,0,0,.45);
+    --shadow-lg:0 24px 60px rgba(0,0,0,.6);
+  }
+  *,*::before,*::after{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper); color:var(--ink); font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased; min-height:100vh; padding-bottom:48px;
+    transition:background var(--dur) ease,color var(--dur) ease;
+  }
+  h1,h2,h3{font-family:var(--font-display); font-weight:600; margin:0;}
+  p{margin:0;}
+  button{font-family:inherit; cursor:pointer;}
+  input,select,textarea{font-family:inherit; font-size:.95rem;}
+  a{color:inherit;}
+  ::selection{background:var(--accent); color:var(--accent-ink);}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px;}
+
+  /* ---------- banner ---------- */
+  .banner{
+    display:flex; align-items:center; gap:10px; justify-content:center;
+    background:var(--accent-soft); color:var(--ink); font-size:.82rem;
+    padding:10px 16px; border-bottom:1px solid var(--border);
+  }
+  .banner svg{flex:none; color:var(--accent);}
+  .banner button{background:none; border:none; color:var(--ink-soft); padding:2px; flex:none; border-radius:6px;}
+  .banner button:hover{color:var(--ink);}
+
+  /* ---------- header ---------- */
+  .header{position:sticky; top:0; z-index:20; background:var(--paper); border-bottom:1px solid var(--border);}
+  .header-inner{
+    max-width:1180px; margin:0 auto; padding:14px 20px;
+    display:flex; align-items:center; gap:14px;
+  }
+  .logo{display:flex; align-items:center; gap:8px; flex:none; min-width:0; max-width:26vw;}
+  .logo-word{font-size:1.25rem; letter-spacing:-.01em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  @media(max-width:480px){.logo-word{font-size:1rem;}}
+  @media(max-width:400px){.logo-word{display:none;} .logo{max-width:none;}}
+  .search-wrap{position:relative; flex:1; min-width:0;}
+  .search-wrap svg{position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--ink-faint); pointer-events:none;}
+  .search-wrap input{
+    width:100%; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-pill);
+    padding:9px 14px 9px 38px; color:var(--ink); -webkit-text-fill-color:var(--ink); caret-color:var(--accent);
+    -webkit-appearance:none; appearance:none; opacity:1;
+    transition:border-color var(--dur) ease, box-shadow var(--dur) ease;
+  }
+  .search-wrap input:focus{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); outline:none;}
+  .search-wrap input::placeholder{color:var(--ink-faint);}
+  .header-actions{display:flex; align-items:center; gap:6px; flex:none; position:relative;}
+
+  .icon-btn{
+    display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px;
+    background:transparent; border:1px solid transparent; border-radius:var(--radius-pill); color:var(--ink-soft);
+    transition:background var(--dur) ease, color var(--dur) ease, border-color var(--dur) ease;
+  }
+  .icon-btn:hover{background:var(--surface-2); color:var(--ink); border-color:var(--border);}
+  .icon-btn.sm{width:30px; height:30px;}
+
+  .btn-primary{
+    display:inline-flex; align-items:center; gap:6px; background:var(--accent-fill); color:var(--accent-ink);
+    border:none; border-radius:var(--radius-pill); padding:9px 18px; font-weight:600; font-size:.9rem;
+    box-shadow:var(--shadow-sm); transition:transform var(--dur) ease, box-shadow var(--dur) ease, filter var(--dur) ease;
+    white-space:nowrap;
+  }
+  .btn-primary:hover{filter:brightness(1.05); box-shadow:var(--shadow-md); transform:translateY(-1px);}
+  .btn-primary:active{transform:translateY(0); filter:brightness(.97);}
+  .btn-primary.sm{padding:7px 14px; font-size:.82rem;}
+  .btn-ghost{
+    background:transparent; border:1px solid var(--border); color:var(--ink); border-radius:var(--radius-pill);
+    padding:9px 18px; font-size:.9rem; font-weight:500; transition:background var(--dur) ease;
+  }
+  .btn-ghost:hover{background:var(--surface-2);}
+  .btn-danger{
+    background:var(--danger); color:var(--danger-ink); border:none; border-radius:var(--radius-pill);
+    padding:9px 18px; font-size:.9rem; font-weight:600; transition:filter var(--dur) ease;
+  }
+  .btn-danger:hover{filter:brightness(1.05);}
+  .link-btn{background:none; border:none; color:var(--accent); font-weight:600; padding:0; text-decoration:underline;}
+
+  .overflow-menu{
+    position:absolute; top:46px; right:0; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-md); box-shadow:var(--shadow-lg); padding:6px; width:230px; z-index:30;
+  }
+  .overflow-menu button{
+    display:block; width:100%; text-align:left; background:none; border:none; color:var(--ink);
+    padding:9px 10px; border-radius:var(--radius-sm); font-size:.88rem;
+  }
+  .overflow-menu button:hover{background:var(--surface-2);}
+  .overflow-menu .menu-divider{height:1px; background:var(--border); margin:6px 4px;}
+  .privacy-note{font-size:.76rem; color:var(--ink-soft); padding:8px 10px 4px; line-height:1.4;}
+  .usage-stat{font-size:.76rem; color:var(--ink-faint); padding:6px 10px 0; line-height:1.4;}
+
+  /* ---------- view mode ---------- */
+  .view-mode-row{
+    max-width:1180px; margin:0 auto; padding:10px 20px 0; display:flex; gap:4px;
+  }
+  .view-mode-row[hidden]{display:none;}
+  .mode-btn{
+    flex:1; background:var(--surface-2); border:1px solid var(--border); color:var(--ink-soft);
+    padding:6px 10px; font-size:.78rem; font-weight:600; transition:background var(--dur) ease, color var(--dur) ease;
+  }
+  .mode-btn:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm);}
+  .mode-btn:last-child{border-radius:0 var(--radius-sm) var(--radius-sm) 0;}
+  .mode-btn:not(:first-child){border-left:none;}
+  .mode-btn.active{background:var(--accent-fill); border-color:var(--accent-fill); color:var(--accent-ink);}
+
+  /* ---------- toolbar (sort + select) ---------- */
+  .toolbar-row{
+    max-width:1180px; margin:0 auto; padding:8px 20px 0; display:flex; justify-content:flex-end; gap:8px;
+  }
+  .toolbar-btn{
+    display:inline-flex; align-items:center; gap:5px; background:transparent; border:1px solid var(--border);
+    color:var(--ink-soft); border-radius:var(--radius-pill); padding:5px 12px; font-size:.78rem; font-weight:600;
+    transition:background var(--dur) ease, color var(--dur) ease, border-color var(--dur) ease;
+  }
+  .toolbar-btn:hover{background:var(--surface-2); color:var(--ink);}
+  .toolbar-btn.active{background:var(--accent-soft); border-color:var(--accent); color:var(--ink);}
+  .sort-control{position:relative;}
+  .sort-menu{
+    position:absolute; top:34px; right:0; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-md); box-shadow:var(--shadow-lg); padding:6px; width:150px; z-index:30;
+  }
+  .sort-menu button{
+    display:block; width:100%; text-align:left; background:none; border:none; color:var(--ink);
+    padding:8px 10px; border-radius:var(--radius-sm); font-size:.85rem;
+  }
+  .sort-menu button:hover{background:var(--surface-2);}
+  .sort-menu button.active{color:var(--accent); font-weight:600;}
+  .sort-menu-divider{height:1px; background:var(--border); margin:6px 4px;}
+  .sort-menu-toggle{
+    display:flex; align-items:center; gap:8px; padding:8px 10px; font-size:.85rem; color:var(--ink);
+    cursor:pointer;
+  }
+  .sort-menu-toggle input{accent-color:var(--accent); width:15px; height:15px; flex:none;}
+
+  /* ---------- bulk selection ---------- */
+  .bulk-bar{
+    position:fixed; left:12px; right:12px; bottom:16px; z-index:45; background:var(--ink); color:var(--paper);
+    border-radius:var(--radius-lg); padding:12px 14px; display:flex; align-items:center; justify-content:space-between;
+    gap:10px; box-shadow:var(--shadow-lg); max-width:600px; margin:0 auto;
+  }
+  [data-theme="dark"] .bulk-bar{background:var(--surface-2); border:1px solid var(--border); color:var(--ink);}
+  .bulk-bar[hidden]{display:none;}
+  .bulk-bar-actions{display:flex; align-items:center; gap:8px; flex:none;}
+  .bulk-bar .btn-ghost.sm, .bulk-bar .btn-danger.sm{padding:6px 12px; font-size:.8rem;}
+  .bulk-bar .btn-ghost.sm{border-color:rgba(255,255,255,.3); color:inherit;}
+  .bulk-bar .link-btn{color:inherit; opacity:.75; text-decoration:underline; font-size:.8rem;}
+  .card-select-check{
+    position:absolute; top:10px; right:10px; width:24px; height:24px; border-radius:50%;
+    background:rgba(20,20,27,.55); color:#fff; display:flex; align-items:center; justify-content:center;
+    border:2px solid rgba(255,255,255,.7); z-index:2;
+  }
+  .card-select-check.checked{background:var(--accent-fill); border-color:var(--accent-fill); color:var(--accent-ink);}
+  .card.selectable{cursor:pointer;}
+  .card.selected{outline:2px solid var(--accent); outline-offset:-2px;}
+  .favorite-btn{
+    position:absolute; bottom:10px; right:10px; width:30px; height:30px; border-radius:50%;
+    background:rgba(20,20,27,.5); color:#fff; display:flex; align-items:center; justify-content:center;
+    border:none; z-index:2; transition:transform var(--dur) ease, background var(--dur) ease;
+  }
+  .favorite-btn:hover{transform:scale(1.08);}
+  .favorite-btn.active{background:var(--accent-fill); color:var(--accent-ink);}
+
+  /* ---------- topic strip ---------- */
+  .topic-strip{
+    max-width:1180px; margin:0 auto; padding:14px 20px 4px; display:flex; gap:8px;
+    overflow-x:auto; scrollbar-width:none;
+  }
+  .topic-strip::-webkit-scrollbar{display:none;}
+  .chip{
+    flex:none; display:inline-flex; align-items:center; gap:6px; background:var(--surface);
+    border:1px solid var(--border); color:var(--ink-soft); border-radius:var(--radius-pill);
+    padding:7px 14px 7px 12px; font-size:.85rem; font-weight:500; white-space:nowrap;
+    transition:background var(--dur) ease, color var(--dur) ease, border-color var(--dur) ease, transform var(--dur) ease;
+  }
+  .chip:hover{transform:translateY(-1px); border-color:var(--ink-faint);}
+  .chip-dot{width:8px; height:8px; border-radius:50%; background:var(--chip-color,var(--accent)); flex:none;}
+  .chip-count{
+    background:var(--surface-2); color:var(--ink-faint); border-radius:var(--radius-pill);
+    padding:1px 7px; font-size:.72rem; font-weight:600;
+  }
+  .chip-active{background:var(--chip-tint,var(--accent-soft)); border-color:var(--chip-color,var(--accent)); color:var(--ink);}
+  .chip-active .chip-count{background:var(--surface); color:var(--ink);}
+  .chip-add{color:var(--ink-soft); border-style:dashed;}
+  .starter-chip{border-style:dashed;}
+  .starter-chip.selected{background:var(--accent-soft); border-color:var(--accent); color:var(--ink); border-style:solid;}
+  .starter-chip:disabled{cursor:default;}
+
+  /* ---------- main / grid ---------- */
+  .main{max-width:1180px; margin:0 auto; padding:16px 20px 40px;}
+  .grid{columns:1; column-gap:16px;}
+  @media(min-width:560px){.grid{columns:2;}}
+  @media(min-width:860px){.grid{columns:3;}}
+  @media(min-width:1180px){.grid{columns:4;}}
+
+  .card{
+    break-inside:avoid; margin-bottom:16px; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-sm);
+    border-top:3px solid var(--card-accent,var(--border));
+    transition:transform var(--dur) ease, box-shadow var(--dur) ease;
+  }
+  .card:hover{transform:translateY(-3px); box-shadow:var(--shadow-md);}
+  .card-thumb{position:relative; width:100%; aspect-ratio:4/5; background:var(--surface-2); overflow:hidden;}
+  .card-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  .thumb-fallback{width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--ink);}
+  .platform-badge{
+    position:absolute; top:10px; left:10px; min-width:26px; height:26px; padding:0 7px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center; font-size:.68rem; font-weight:700; color:#fff;
+    box-shadow:0 2px 6px rgba(0,0,0,.25); letter-spacing:.02em;
+  }
+  .card-body{padding:12px 14px 14px;}
+  .card-title{font-size:.98rem; line-height:1.35; margin-bottom:6px; font-weight:600;}
+  .card-topics{display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px;}
+  .tag{
+    font-size:.7rem; font-weight:600; color:var(--tag-color); background:color-mix(in srgb, var(--tag-color) 14%, transparent);
+    padding:3px 9px; border-radius:var(--radius-pill);
+  }
+  .card-notes{font-size:.8rem; color:var(--ink-soft); line-height:1.4; margin-bottom:8px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .card-footer{display:flex; align-items:center; justify-content:space-between; margin-top:4px;}
+  .card-date{font-size:.7rem; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.04em;}
+  .card-actions{display:flex; gap:2px;}
+
+  /* ---------- empty states ---------- */
+  .empty-state{display:flex; align-items:center; justify-content:center; padding:40px 16px;}
+  .onboarding{max-width:420px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;}
+  .onboarding svg{margin-bottom:6px; animation:float 5s ease-in-out infinite;}
+  .onboarding h2{font-size:1.3rem;}
+  .onboarding p{color:var(--ink-soft); font-size:.9rem; line-height:1.5;}
+  .onboarding .hint{color:var(--ink-faint); font-size:.78rem; margin-top:8px; text-transform:uppercase; letter-spacing:.04em;}
+  .starter-chips{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:8px 0 14px;}
+  .empty-inline{text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px; padding:20px;}
+  .empty-inline h3{font-size:1.05rem;}
+  .empty-inline p{color:var(--ink-soft); font-size:.85rem;}
+  @keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+
+  /* ---------- modals ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(10,10,14,.45); display:flex; align-items:flex-end;
+    justify-content:center; z-index:50; opacity:0; transition:opacity var(--dur) ease;
+  }
+  .modal-backdrop[hidden]{display:none;}
+  .modal-backdrop.open{opacity:1;}
+  .modal{
+    background:var(--surface); width:100%; max-width:480px; max-height:88vh; overflow-y:auto;
+    border-radius:var(--radius-lg) var(--radius-lg) 0 0; padding:22px 22px calc(22px + env(safe-area-inset-bottom));
+    box-shadow:var(--shadow-lg); transform:translateY(16px); transition:transform var(--dur) ease;
+  }
+  .modal-backdrop.open .modal{transform:translateY(0);}
+  .modal h2{font-size:1.2rem; margin-bottom:16px;}
+  .modal-sm{max-width:380px;}
+  @media(min-width:640px){
+    .modal-backdrop{align-items:center;}
+    .modal{border-radius:var(--radius-lg); transform:translateY(8px) scale(.98);}
+  }
+  #itemForm label,.field-group{display:block; font-size:.8rem; font-weight:600; color:var(--ink-soft); margin-bottom:14px;}
+  .optional{font-weight:400; color:var(--ink-faint); text-transform:none;}
+  #itemForm input,#itemForm select,#itemForm textarea{
+    display:block; width:100%; margin-top:6px; padding:10px 12px; background:var(--surface-2);
+    border:1px solid var(--border); border-radius:var(--radius-md); color:var(--ink); font-weight:400;
+  }
+  #itemForm input:focus,#itemForm select:focus,#itemForm textarea:focus{border-color:var(--accent); outline:none;}
+  #itemForm textarea{resize:vertical;}
+  .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:6px;}
+  .more-details-toggle{background:none; border:none; color:var(--accent); font-weight:600; font-size:.85rem; padding:4px 0 14px; text-align:left;}
+  .more-details{overflow:hidden; max-height:0; opacity:0; transition:max-height .25s ease, opacity .2s ease;}
+  .more-details.open{max-height:400px; opacity:1;}
+  .btn-primary:active,.btn-ghost:active,.btn-danger:active,.icon-btn:active,.chip:active{transform:scale(.96);}
+
+  .topic-pick-list{display:flex; flex-wrap:wrap; gap:7px; margin-top:8px;}
+  .topic-pick-chip{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--ink-soft); border-radius:var(--radius-pill);
+    padding:6px 13px; font-size:.82rem; font-weight:500; transition:all var(--dur) ease;
+  }
+  .topic-pick-chip.selected{background:var(--chip-color); border-color:var(--chip-color); color:#fff;}
+  .topic-pick-chip.add-new{border-style:dashed;}
+  .inline-new-topic{display:flex; gap:8px; margin-top:10px;}
+  .inline-new-topic input{flex:1; padding:8px 12px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); color:var(--ink);}
+
+  .topic-manage-list{display:flex; flex-direction:column; gap:6px; margin-bottom:16px; max-height:280px; overflow-y:auto;}
+  .topic-manage-row{display:flex; align-items:center; gap:10px; padding:6px; border-radius:var(--radius-sm);}
+  .topic-manage-row .chip-dot{width:10px; height:10px;}
+  .topic-rename-input{flex:1; border:1px solid transparent; background:transparent; color:var(--ink); padding:6px 8px; border-radius:var(--radius-sm); font-size:.88rem;}
+  .topic-rename-input:hover,.topic-rename-input:focus{background:var(--surface-2); border-color:var(--border); outline:none;}
+  .topic-manage-count{font-size:.72rem; color:var(--ink-faint); flex:none;}
+  .new-topic-form{display:flex; gap:8px; padding-top:10px; border-top:1px solid var(--border);}
+  .new-topic-form input{flex:1; padding:9px 12px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); color:var(--ink);}
+  .hint{color:var(--ink-soft); font-size:.85rem; font-weight:400;}
+
+  /* ---------- toast ---------- */
+  .toast-container{position:fixed; left:0; right:0; bottom:20px; display:flex; flex-direction:column; align-items:center; gap:8px; z-index:60; pointer-events:none;}
+  .toast{
+    background:var(--ink); color:var(--paper); padding:10px 18px; border-radius:var(--radius-pill);
+    font-size:.85rem; box-shadow:var(--shadow-lg); opacity:0; transform:translateY(8px); transition:opacity var(--dur) ease, transform var(--dur) ease;
+  }
+  [data-theme="dark"] .toast{background:var(--surface-2); color:var(--ink); border:1px solid var(--border);}
+  .toast.show{opacity:1; transform:translateY(0);}
+
+  /* ---------- html import ---------- */
+  .onboarding-actions{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:4px;}
+  .import-summary{font-size:.85rem; color:var(--ink-soft); line-height:1.5; margin-bottom:4px;}
+  .import-summary strong{color:var(--ink);}
+  .import-topics-preview{display:flex; flex-wrap:wrap; gap:5px; margin:8px 0 4px;}
+  .import-select-row{display:flex; justify-content:space-between; align-items:center; margin:10px 0 8px; gap:10px;}
+  .import-select-row .hint{font-size:.78rem;}
+  .import-select-row .link-btn{font-size:.78rem; margin-left:4px;}
+  .import-list{max-height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; border:1px solid var(--border); border-radius:var(--radius-md); padding:6px; margin-bottom:14px;}
+  .import-row{display:flex; align-items:flex-start; gap:10px; padding:8px; border-radius:var(--radius-sm); cursor:pointer;}
+  .import-row:hover{background:var(--surface-2);}
+  .import-row input[type="checkbox"]{margin-top:4px; flex:none; width:16px; height:16px; accent-color:var(--accent);}
+  .import-row .platform-badge{position:static; flex:none; width:24px; height:24px; font-size:.62rem; box-shadow:none;}
+  .import-row-text{flex:1; min-width:0;}
+  .import-row-title{font-size:.85rem; font-weight:600; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .import-row-tags{font-size:.72rem; color:var(--ink-soft); display:block; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .dup-badge{flex:none; font-size:.65rem; color:var(--ink-faint); background:var(--surface-2); padding:3px 8px; border-radius:var(--radius-pill); white-space:nowrap; margin-top:2px;}
+  .import-toggle-row{display:flex; align-items:center; gap:9px; font-size:.82rem; color:var(--ink-soft); margin:10px 0 2px; cursor:pointer;}
+  .import-toggle-row input{accent-color:var(--accent); width:16px; height:16px; flex:none;}
+  .import-row-thumb{flex:none; width:38px; height:38px; border-radius:8px; overflow:hidden; background:var(--surface-2); display:flex; align-items:center; justify-content:center;}
+  .import-row-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  .import-row-creator{color:var(--accent); font-weight:600;}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+  }
+</style>
+<script>window.STASHBOARD_API_BASE = 'https://server-live-production-2c3a.up.railway.app';</script>
+<script src="sync.js"></script>
+</head>
+<body data-theme="light">
+
+  <div id="storageBanner" class="banner" hidden></div>
+
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">
+          <rect x="4" y="8" width="18" height="20" rx="4" fill="var(--border)" transform="rotate(-8 13 18)"/>
+          <rect x="10" y="4" width="18" height="24" rx="4" fill="var(--accent)"/>
+        </svg>
+        <h1 class="logo-word">Sortagram</h1>
+      </div>
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="searchInput" type="search" placeholder="Search your stash…" aria-label="Search saved items">
+      </div>
+      <div class="header-actions">
+        <button id="themeToggle" class="icon-btn" type="button" aria-label="Toggle dark mode"></button>
+        <button id="menuToggle" class="icon-btn" type="button" aria-label="More options">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+        </button>
+        <button id="addItemBtn" class="btn-primary" type="button">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Save
+        </button>
+        <div class="overflow-menu" id="overflowMenu" hidden>
+          <button type="button" data-action="manage-topics">Manage topics</button>
+          <button type="button" data-action="export">Export backup</button>
+          <button type="button" data-action="import">Import from JSON</button>
+          <button type="button" data-action="import-html">Import from HTML</button>
+          <button type="button" data-action="clear-all">Clear all data</button>
+          <div class="menu-divider"></div>
+          <button type="button" id="syncMenuBtn" data-action="sync-open">Sync across devices</button>
+          <div class="menu-divider"></div>
+          <p class="usage-stat" id="usageStat"></p>
+          <p class="privacy-note" id="privacyNote">🔒 Everything stays on this device unless you turn on sync.</p>
+        </div>
+      </div>
+    </div>
+    <div class="view-mode-row" id="viewModeRow" hidden>
+      <button type="button" class="mode-btn" data-mode="both">Both</button>
+      <button type="button" class="mode-btn" data-mode="topic">Topics</button>
+      <button type="button" class="mode-btn" data-mode="creator">Creators</button>
+    </div>
+    <nav class="topic-strip" id="topicStrip" aria-label="Filter by topic"></nav>
+    <div class="toolbar-row" id="toolbarRow" hidden>
+      <div class="sort-control">
+        <button type="button" class="toolbar-btn" id="sortMenuBtn" aria-haspopup="true" aria-expanded="false"></button>
+        <div class="sort-menu" id="sortMenu" hidden>
+          <button type="button" data-sort="newest">Newest first</button>
+          <button type="button" data-sort="oldest">Oldest first</button>
+          <button type="button" data-sort="alpha">A–Z</button>
+          <button type="button" data-sort="alpha_desc">Z–A</button>
+          <button type="button" data-sort="platform">By platform</button>
+          <button type="button" data-sort="updated">Recently edited</button>
+          <div class="sort-menu-divider"></div>
+          <label class="sort-menu-toggle">
+            <input type="checkbox" id="favoritesFirstToggle">
+            <span>Favorites first</span>
+          </label>
+        </div>
+      </div>
+      <button type="button" class="toolbar-btn" id="selectAllBtn" hidden>Select all</button>
+      <button type="button" class="toolbar-btn" id="selectModeBtn">Select</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="grid" id="grid"></div>
+    <div class="empty-state" id="emptyState" hidden></div>
+  </main>
+
+  <div class="bulk-bar" id="bulkBar" hidden>
+    <span id="bulkCount">0 selected</span>
+    <div class="bulk-bar-actions">
+      <button type="button" class="btn-ghost sm" id="bulkAddTopicBtn">Add topic</button>
+      <button type="button" class="btn-danger sm" id="bulkDeleteBtn">Delete</button>
+      <button type="button" class="link-btn" id="bulkCancelBtn">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Item modal -->
+  <div class="modal-backdrop" id="itemModalBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="itemModalTitle">
+      <h2 id="itemModalTitle">Save something new</h2>
+      <form id="itemForm">
+        <label>Paste a link
+          <input id="fieldUrl" type="url" placeholder="https://…">
+        </label>
+        <label>Title <span class="optional">optional — we'll fill this in if you skip it</span>
+          <input id="fieldTitle" maxlength="140" placeholder="e.g. 5-minute pasta trick">
+        </label>
+        <label>Where's it from? <span class="optional">auto-detected from the link</span>
+          <select id="fieldPlatform">
+            <option value="instagram">Instagram</option>
+            <option value="tiktok">TikTok</option>
+            <option value="pinterest">Pinterest</option>
+            <option value="youtube">YouTube</option>
+            <option value="facebook">Facebook</option>
+            <option value="twitter">X (Twitter)</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <div class="field-group">
+          Topics
+          <div id="topicPicker" class="topic-picker"></div>
+        </div>
+        <button type="button" class="more-details-toggle" id="moreDetailsToggle">+ More details (optional)</button>
+        <div class="more-details" id="moreDetailsPanel">
+          <label>Thumbnail image URL <span class="optional">optional</span>
+            <input id="fieldThumb" type="url" placeholder="https://…">
+          </label>
+          <label>Notes <span class="optional">optional</span>
+            <textarea id="fieldNotes" rows="2" placeholder="Why you saved it…"></textarea>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" data-close>Cancel</button>
+          <button type="submit" class="btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Topic manage modal -->
+  <div class="modal-backdrop" id="topicModalBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="topicModalHeading">
+      <h2 id="topicModalHeading">Manage topics</h2>
+      <div id="topicManageList" class="topic-manage-list"></div>
+      <form id="newTopicForm" class="new-topic-form">
+        <input id="newTopicName" placeholder="New topic name" maxlength="30" aria-label="New topic name">
+        <button type="submit" class="btn-primary sm">Add</button>
+      </form>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" data-close>Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm modal -->
+  <div class="modal-backdrop" id="confirmModalBackdrop" hidden>
+    <div class="modal modal-sm" role="alertdialog" aria-modal="true">
+      <p id="confirmMessage" style="font-size:.95rem; line-height:1.5; margin-bottom:18px;"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="confirmCancel">Cancel</button>
+        <button type="button" class="btn-danger" id="confirmOk">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HTML import preview modal -->
+  <div class="modal-backdrop" id="htmlImportModalBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="htmlImportHeading">
+      <h2 id="htmlImportHeading">Import items</h2>
+      <p class="hint" style="display:block; margin-bottom:10px;">Parsed entirely on your device — the file never leaves your browser.</p>
+      <p class="import-summary" id="htmlImportSummary"></p>
+      <div class="import-topics-preview" id="htmlImportTopicsPreview"></div>
+      <label class="import-toggle-row">
+        <input type="checkbox" id="tagCreatorToggle" checked>
+        <span>Tag items with their creator (e.g. @username), where detectable</span>
+      </label>
+      <label class="import-toggle-row">
+        <input type="checkbox" id="tagCategoryToggle" checked>
+        <span>Tag items with a main topic (e.g. Food, Tech), where detectable</span>
+      </label>
+      <div class="import-select-row">
+        <span class="hint">Uncheck anything you don't want</span>
+        <span>
+          <button type="button" class="link-btn" id="htmlImportSelectAll">All</button>
+          <button type="button" class="link-btn" id="htmlImportSelectNone">None</button>
+        </span>
+      </div>
+      <div class="import-list" id="htmlImportList"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" data-close>Cancel</button>
+        <button type="button" class="btn-primary" id="confirmHtmlImportBtn">Import</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="importFileInput" accept="application/json" hidden>
+  <input type="file" id="htmlImportFileInput" accept=".html,.htm,text/html" hidden>
+  <div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- constants ---------------- */
+  var TOPIC_COLORS = [
+    {base:'#FF6B5B', tint:'#FFEDE9', tintDark:'#3A211D'},
+    {base:'#F5A623', tint:'#FFF4E0', tintDark:'#3A2E12'},
+    {base:'#14B8A6', tint:'#E3FBF8', tintDark:'#0F332F'},
+    {base:'#6366F1', tint:'#EDEEFE', tintDark:'#22224A'},
+    {base:'#EC4899', tint:'#FDEAF3', tintDark:'#3C1F30'},
+    {base:'#84CC16', tint:'#F3FBE4', tintDark:'#293312'},
+    {base:'#38BDF8', tint:'#E7F6FE', tintDark:'#15303D'},
+    {base:'#A855F7', tint:'#F5EBFE', tintDark:'#301C42'}
+  ];
+  var PLATFORMS = {
+    instagram:{label:'Instagram', mono:'IG', bg:'linear-gradient(135deg,#F6A03C,#E0416B)', video:true},
+    tiktok:{label:'TikTok', mono:'TT', bg:'#101014', video:true},
+    pinterest:{label:'Pinterest', mono:'P', bg:'#D63447', video:false},
+    youtube:{label:'YouTube', mono:'YT', bg:'#E23744', video:true},
+    facebook:{label:'Facebook', mono:'f', bg:'#3B5C9E', video:false},
+    twitter:{label:'X', mono:'X', bg:'#14141B', video:false},
+    other:{label:'Other', mono:'•', bg:'#8A8A94', video:false}
+  };
+  var STARTER_TOPICS = ['Recipes','Fitness','Fashion','Travel','Home & DIY','Quotes','Beauty','Money'];
+  var STORAGE_KEY = 'stashboard_data_v1';
+
+  var ICONS = {
+    edit:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+    trash:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>',
+    link:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>',
+    close:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>',
+    info:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v5h1"/></svg>',
+    sun:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+    moon:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>',
+    playGlyph:'<svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" opacity=".45"><path d="M8 5v14l11-7z"/></svg>',
+    imageGlyph:'<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".45"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m21 15-5-5-9 9"/></svg>',
+    emptyIllustration:'<svg viewBox="0 0 120 96" width="110" height="88" fill="none"><rect x="18" y="28" width="52" height="60" rx="8" fill="var(--surface-2)" stroke="var(--border)" stroke-width="2" transform="rotate(-7 44 58)"/><rect x="40" y="20" width="56" height="66" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="2"/><circle cx="68" cy="47" r="10" fill="none" stroke="var(--accent)" stroke-width="2.5"/><path d="M64 47h8M68 43v8" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/></svg>',
+    emptyInline:'<svg viewBox="0 0 80 80" width="52" height="52" fill="none"><rect x="14" y="18" width="52" height="44" rx="8" fill="var(--surface-2)" stroke="var(--border)" stroke-width="2"/><path d="M28 62v6l12-8 12 8v-6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="2"/></svg>',
+    emptySearch:'<svg viewBox="0 0 80 80" width="52" height="52" fill="none" stroke="var(--border)" stroke-width="2"><circle cx="34" cy="34" r="18"/><path d="m47 47 14 14" stroke-linecap="round"/></svg>',
+    starOutline:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 15.1 9l7.1 1-5.1 5 1.2 7.1-6.3-3.3-6.3 3.3 1.2-7.1-5.1-5 7.1-1Z"/></svg>',
+    starFilled:'<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2.5 15.1 9l7.1 1-5.1 5 1.2 7.1-6.3-3.3-6.3 3.3 1.2-7.1-5.1-5 7.1-1Z"/></svg>',
+    sortIcon:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12M9 12h6M11 16h2"/></svg>',
+    checkCircle:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.3 2.3 4.7-4.7"/></svg>'
+  };
+
+  /* ---------------- helpers ---------------- */
+  function $(sel, ctx){ return (ctx||document).querySelector(sel); }
+  function $all(sel, ctx){ return Array.prototype.slice.call((ctx||document).querySelectorAll(sel)); }
+  function uid(prefix){ return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function escapeHtml(str){
+    return String(str==null?'':str).replace(/[&<>"']/g, function(m){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+    });
+  }
+  function formatDate(ts){
+    var d = new Date(ts);
+    return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+  }
+  // Normalizes a URL for duplicate comparison only (never for display or
+  // saving). Lowercases scheme+host and strips a trailing slash from the
+  // path, but deliberately leaves the path/query untouched — many
+  // platforms (e.g. YouTube video IDs) use case-sensitive paths, so
+  // lowercasing those would cause false-positive "duplicate" matches
+  // between two genuinely different links.
+  function normalizeUrlForDedup(url){
+    if(!url) return '';
+    try{
+      var u = new URL(url, window.location.href);
+      var path = u.pathname.replace(/\/+$/, '');
+      return u.protocol.toLowerCase()+'//'+u.hostname.toLowerCase()+path+u.search;
+    }catch(e){
+      return url.trim();
+    }
+  }
+  function hexToRgba(hex, alpha){
+    var h = hex.replace('#','');
+    var r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
+    return 'rgba('+r+','+g+','+b+','+alpha+')';
+  }
+  function gradientFor(hex){ return 'linear-gradient(135deg, '+hexToRgba(hex,.45)+', '+hexToRgba(hex,.12)+')'; }
+  function glyphFor(platform){
+    var p = PLATFORMS[platform] || PLATFORMS.other;
+    return p.video ? ICONS.playGlyph : ICONS.imageGlyph;
+  }
+
+  /* ---------------- storage ---------------- */
+  var storageAvailable = true;
+  var memoryFallback = null;
+
+  function testStorage(){
+    try{ var k='__sb_test__'; window.localStorage.setItem(k,'1'); window.localStorage.removeItem(k); return true; }
+    catch(e){ return false; }
+  }
+
+  function persist(){
+    var json = JSON.stringify(state);
+    if(storageAvailable){
+      try{ window.localStorage.setItem(STORAGE_KEY, json); return; }
+      catch(e){ storageAvailable = false; showStorageBanner(); }
+    }
+    memoryFallback = json;
+  }
+
+  // Fills in fields that didn't exist in older data — old localStorage,
+  // an imported full backup from before a given feature existed, etc.
+  // Every path that loads topics/items (initial load, backup restore)
+  // must run data through this, or older records silently misbehave
+  // instead of getting sensible defaults.
+  function migrateTopicsAndItems(topics, items){
+    topics.forEach(function(t){
+      if(t.isCreator===undefined) t.isCreator = t.name.charAt(0)==='@';
+      if(t.colorIndex===undefined) t.colorIndex = 0;
+    });
+    items.forEach(function(i){
+      if(i.favorite===undefined) i.favorite = false;
+      if(!Array.isArray(i.topicIds)) i.topicIds = [];
+    });
+    return {topics:topics, items:items};
+  }
+
+  function loadInitial(){
+    storageAvailable = testStorage();
+    var raw = null;
+    if(storageAvailable){
+      try{ raw = window.localStorage.getItem(STORAGE_KEY); }
+      catch(e){ storageAvailable = false; }
+    }
+    if(!storageAvailable){
+      showStorageBanner();
+      raw = memoryFallback;
+    }
+    if(raw){
+      try{
+        var parsed = JSON.parse(raw);
+        if(parsed && Array.isArray(parsed.topics) && Array.isArray(parsed.items)){
+          var migrated = migrateTopicsAndItems(parsed.topics, parsed.items);
+          return {topics:migrated.topics, items:migrated.items, theme:parsed.theme||null, opens:parsed.opens||0, firstOpened:parsed.firstOpened||null, viewMode:parsed.viewMode||'both', sortBy:parsed.sortBy||'newest', favoritesFirst:parsed.favoritesFirst!==false};
+        }
+      }catch(e){}
+    }
+    return {topics:[], items:[], theme:null, opens:0, firstOpened:null, viewMode:'both', sortBy:'newest', favoritesFirst:true};
+  }
+
+  function showStorageBanner(){
+    var banner = $('#storageBanner');
+    if(!banner || banner.dataset.shown) return;
+    banner.dataset.shown = '1';
+    banner.hidden = false;
+    banner.innerHTML = '<span style="display:flex;align-items:center;gap:8px;">'+ICONS.info+' This preview can\'t save permanently. Download the file below and open it in your browser to keep your stash for good.</span>'+
+      '<button type="button" id="dismissBanner" aria-label="Dismiss">'+ICONS.close+'</button>';
+    var dismiss = $('#dismissBanner');
+    if(dismiss) dismiss.addEventListener('click', function(){ banner.hidden = true; });
+  }
+
+  /* ---------------- state ---------------- */
+  var state = loadInitial();
+  var activeTopicId = 'all';
+  var searchQuery = '';
+  var editingItemId = null;
+  var confirmCallback = null;
+  var selectMode = false;
+  var selectedIds = {};
+
+  /* ---------------- theme ---------------- */
+  function getEffectiveTheme(){
+    if(state.theme === 'light' || state.theme === 'dark') return state.theme;
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  function applyTheme(){
+    var t = getEffectiveTheme();
+    document.body.setAttribute('data-theme', t);
+    var btn = $('#themeToggle');
+    if(btn) btn.innerHTML = t === 'dark' ? ICONS.sun : ICONS.moon;
+  }
+  function toggleTheme(){
+    state.theme = getEffectiveTheme() === 'dark' ? 'light' : 'dark';
+    applyTheme();
+    persist();
+    renderAll();
+  }
+
+  /* ---------------- topic helpers ---------------- */
+  function topicColor(topic){ return TOPIC_COLORS[topic.colorIndex % TOPIC_COLORS.length]; }
+  function getTopicById(id){
+    for(var i=0;i<state.topics.length;i++){ if(state.topics[i].id===id) return state.topics[i]; }
+    return null;
+  }
+  function itemCountForTopic(topicId){
+    var n=0; for(var i=0;i<state.items.length;i++){ if(state.items[i].topicIds.indexOf(topicId)!==-1) n++; }
+    return n;
+  }
+  function createTopic(name, isCreator){
+    var topic = {id:uid('topic'), name:name, colorIndex:state.topics.length, isCreator:!!isCreator, updatedAt:Date.now()};
+    state.topics.push(topic);
+    persist();
+    queueSync('topics', topic);
+    return topic;
+  }
+
+  // Queues a change (or a deletion tombstone) for the sync client, if signed in.
+  // Safe to call even when Sync isn't loaded or the user is offline/anonymous.
+  function queueSync(kind, record){
+    if(window.Sync && window.Sync.user) window.Sync.queueChange(kind, record);
+  }
+  function tombstoneFor(record){
+    var t = Date.now();
+    var copy = {}; for(var k in record){ copy[k]=record[k]; }
+    copy.deletedAt = t; copy.updatedAt = t;
+    return copy;
+  }
+
+  /* ---------------- filtering ---------------- */
+  function getFilteredItems(){
+    var items = state.items.slice();
+    if(activeTopicId !== 'all'){
+      items = items.filter(function(it){ return it.topicIds.indexOf(activeTopicId) !== -1; });
+    }
+    var q = searchQuery.trim().toLowerCase();
+    if(q){
+      items = items.filter(function(it){
+        var topicNames = it.topicIds.map(function(id){ var t=getTopicById(id); return t?t.name:''; }).join(' ').toLowerCase();
+        var platLabel = (PLATFORMS[it.platform]||PLATFORMS.other).label.toLowerCase();
+        return it.title.toLowerCase().indexOf(q)!==-1 ||
+               (it.notes||'').toLowerCase().indexOf(q)!==-1 ||
+               topicNames.indexOf(q)!==-1 ||
+               platLabel.indexOf(q)!==-1;
+      });
+    }
+    items.sort(function(a,b){
+      // "Favorites first" is an independent toggle, not baked into a sort
+      // mode, so it composes cleanly with whichever sort is active below.
+      if(state.favoritesFirst && !!b.favorite !== !!a.favorite) return (b.favorite?1:0) - (a.favorite?1:0);
+      switch(state.sortBy){
+        case 'oldest': return a.createdAt - b.createdAt;
+        case 'alpha': return a.title.localeCompare(b.title);
+        case 'alpha_desc': return b.title.localeCompare(a.title);
+        case 'updated': return (b.updatedAt||b.createdAt) - (a.updatedAt||a.createdAt);
+        case 'platform':
+          var pa = (PLATFORMS[a.platform]||PLATFORMS.other).label;
+          var pb = (PLATFORMS[b.platform]||PLATFORMS.other).label;
+          return pa.localeCompare(pb) || (b.createdAt - a.createdAt);
+        default: return b.createdAt - a.createdAt; // newest
+      }
+    });
+    return items;
+  }
+
+  /* ---------------- render: topic strip ---------------- */
+  function chipHTML(id, name, count, active, color){
+    var style = '';
+    if(color){
+      var tint = document.body.getAttribute('data-theme')==='dark' ? color.tintDark : color.tint;
+      style = 'style="--chip-color:'+color.base+';--chip-tint:'+tint+'"';
+    }
+    return '<button type="button" class="chip'+(active?' chip-active':'')+'" data-topic-id="'+id+'" '+style+'>'+
+      (color ? '<span class="chip-dot"></span>' : '') + escapeHtml(name) +
+      '<span class="chip-count">'+count+'</span></button>';
+  }
+
+  function renderViewModeControl(){
+    var row = $('#viewModeRow');
+    var hasTopic = state.topics.some(function(t){ return !t.isCreator; });
+    var hasCreator = state.topics.some(function(t){ return t.isCreator; });
+    if(!hasTopic || !hasCreator){ row.hidden = true; return; }
+    row.hidden = false;
+    $all('.mode-btn', row).forEach(function(btn){
+      btn.classList.toggle('active', btn.getAttribute('data-mode')===state.viewMode);
+    });
+  }
+
+  function visibleTopics(){
+    if(state.viewMode==='topic') return state.topics.filter(function(t){ return !t.isCreator; });
+    if(state.viewMode==='creator') return state.topics.filter(function(t){ return t.isCreator; });
+    return state.topics;
+  }
+
+  function renderTopicStrip(){
+    renderViewModeControl();
+    var strip = $('#topicStrip');
+    var shown = visibleTopics();
+    if(activeTopicId!=='all' && !shown.some(function(t){ return t.id===activeTopicId; })) activeTopicId = 'all';
+    var total = state.items.length;
+    var html = chipHTML('all','All', total, activeTopicId==='all', null);
+    shown.forEach(function(t){
+      html += chipHTML(t.id, t.name, itemCountForTopic(t.id), activeTopicId===t.id, topicColor(t));
+    });
+    html += '<button type="button" class="chip chip-add" id="manageTopicsChip">+ Topics</button>';
+    strip.innerHTML = html;
+    $all('.chip[data-topic-id]', strip).forEach(function(chip){
+      chip.addEventListener('click', function(){
+        activeTopicId = chip.getAttribute('data-topic-id');
+        renderTopicStrip();
+        renderGrid();
+      });
+    });
+    var manageBtn = $('#manageTopicsChip');
+    if(manageBtn) manageBtn.addEventListener('click', openTopicManageModal);
+  }
+
+  $('#viewModeRow').addEventListener('click', function(e){
+    var btn = e.target.closest('.mode-btn');
+    if(!btn) return;
+    state.viewMode = btn.getAttribute('data-mode');
+    persist();
+    renderTopicStrip();
+    renderGrid();
+  });
+
+
+  /* ---------------- render: grid ---------------- */
+  function cardHTML(item){
+    var plat = PLATFORMS[item.platform] || PLATFORMS.other;
+    var topics = item.topicIds.map(getTopicById).filter(Boolean);
+    var primaryColor = topics.length ? topicColor(topics[0]).base : '#C7C7D1';
+    var thumbInner = item.thumb
+      ? '<img src="'+escapeHtml(item.thumb)+'" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'+
+        '<div class="thumb-fallback" style="display:none;background:'+gradientFor(primaryColor)+'">'+glyphFor(item.platform)+'</div>'
+      : '<div class="thumb-fallback" style="background:'+gradientFor(primaryColor)+'">'+glyphFor(item.platform)+'</div>';
+
+    var topicsHtml = topics.length
+      ? '<div class="card-topics">'+topics.map(function(t){
+          return '<span class="tag" style="--tag-color:'+topicColor(t).base+'">'+escapeHtml(t.name)+'</span>';
+        }).join('')+'</div>'
+      : '';
+
+    var notesHtml = item.notes ? '<p class="card-notes">'+escapeHtml(item.notes)+'</p>' : '';
+    var linkHtml = item.url ? '<a class="icon-btn sm" href="'+escapeHtml(item.url)+'" target="_blank" rel="noopener noreferrer" aria-label="Open original">'+ICONS.link+'</a>' : '';
+    var isSelected = !!selectedIds[item.id];
+    var selectHtml = selectMode
+      ? '<span class="card-select-check'+(isSelected?' checked':'')+'" data-action="toggle-select" data-id="'+item.id+'">'+(isSelected?ICONS.checkCircle:'')+'</span>'
+      : '<button type="button" class="favorite-btn'+(item.favorite?' active':'')+'" data-action="favorite" data-id="'+item.id+'" aria-label="'+(item.favorite?'Remove from favorites':'Add to favorites')+'">'+(item.favorite?ICONS.starFilled:ICONS.starOutline)+'</button>';
+
+    return '<article class="card'+(selectMode?' selectable':'')+(isSelected?' selected':'')+'" style="--card-accent:'+primaryColor+'" data-action="'+(selectMode?'toggle-select':'')+'" data-id="'+(selectMode?item.id:'')+'">'+
+      '<div class="card-thumb">'+thumbInner+'<span class="platform-badge" style="background:'+plat.bg+'">'+plat.mono+'</span>'+selectHtml+'</div>'+
+      '<div class="card-body">'+
+        '<h3 class="card-title">'+escapeHtml(item.title)+'</h3>'+
+        topicsHtml + notesHtml +
+        '<div class="card-footer">'+
+          '<span class="card-date">'+formatDate(item.createdAt)+'</span>'+
+          '<div class="card-actions">'+linkHtml+
+            '<button type="button" class="icon-btn sm" data-action="edit" data-id="'+item.id+'" aria-label="Edit">'+ICONS.edit+'</button>'+
+            '<button type="button" class="icon-btn sm" data-action="delete" data-id="'+item.id+'" aria-label="Delete">'+ICONS.trash+'</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+    '</article>';
+  }
+
+  function onboardingEmptyStateHTML(){
+    var chips = STARTER_TOPICS.map(function(name){
+      return '<button type="button" class="chip starter-chip" data-starter="'+escapeHtml(name)+'">+ '+escapeHtml(name)+'</button>';
+    }).join('');
+    return '<div class="onboarding">'+ICONS.emptyIllustration+
+      '<h2>Your stash starts here</h2>'+
+      '<p>Save the reels and posts you don\'t want to lose, sorted by topic so you can actually find them again.</p>'+
+      '<p class="hint">Tap a few topics to start, or add your own in "+ Topics"</p>'+
+      '<p class="hint">Tap \u22ee for options</p>'+
+      '<div class="starter-chips">'+chips+'</div>'+
+      '<div class="onboarding-actions">'+
+        '<button type="button" class="btn-primary" id="onboardingAddBtn">+ Save your first item</button>'+
+        '<button type="button" class="btn-ghost" id="onboardingImportBtn">Import from HTML</button>'+
+      '</div>'+
+    '</div>';
+  }
+
+  function filteredEmptyStateHTML(){
+    if(searchQuery.trim()){
+      return '<div class="empty-inline">'+ICONS.emptySearch+'<h3>No matches for "'+escapeHtml(searchQuery.trim())+'"</h3><p>Try a different search term.</p></div>';
+    }
+    var t = activeTopicId!=='all' ? getTopicById(activeTopicId) : null;
+    var label = t ? '"'+escapeHtml(t.name)+'"' : 'here';
+    return '<div class="empty-inline">'+ICONS.emptyInline+'<h3>Nothing in '+label+' yet</h3><p>Save something and tag it with this topic.</p>'+
+      '<button type="button" class="btn-primary" id="emptyAddBtn">+ Save something</button></div>';
+  }
+
+  function renderGrid(){
+    var grid = $('#grid');
+    var emptyState = $('#emptyState');
+
+    if(state.topics.length===0 && state.items.length===0){
+      grid.hidden = true; grid.innerHTML = ''; emptyState.hidden = false;
+      emptyState.innerHTML = onboardingEmptyStateHTML();
+      $all('.starter-chip').forEach(function(chip){
+        chip.addEventListener('click', function(){
+          createTopic(chip.getAttribute('data-starter'));
+          renderTopicStrip();
+          chip.disabled = true;
+          chip.classList.add('selected');
+        });
+      });
+      var onboardBtn = $('#onboardingAddBtn');
+      if(onboardBtn) onboardBtn.addEventListener('click', function(){ openItemModal(); });
+      var onboardImportBtn = $('#onboardingImportBtn');
+      if(onboardImportBtn) onboardImportBtn.addEventListener('click', function(){ $('#htmlImportFileInput').click(); });
+      return;
+    }
+
+    var items = getFilteredItems();
+    if(items.length===0){
+      grid.hidden = true; grid.innerHTML = ''; emptyState.hidden = false;
+      emptyState.innerHTML = filteredEmptyStateHTML();
+      var emptyBtn = $('#emptyAddBtn');
+      if(emptyBtn) emptyBtn.addEventListener('click', function(){ openItemModal(); });
+      return;
+    }
+
+    grid.hidden = false; emptyState.hidden = true;
+    grid.innerHTML = items.map(cardHTML).join('');
+    $all('[data-action="edit"]', grid).forEach(function(b){
+      b.addEventListener('click', function(e){ e.stopPropagation(); openItemModal(b.getAttribute('data-id')); });
+    });
+    $all('[data-action="delete"]', grid).forEach(function(b){
+      b.addEventListener('click', function(e){ e.stopPropagation(); deleteItemFlow(b.getAttribute('data-id')); });
+    });
+    $all('[data-action="favorite"]', grid).forEach(function(b){
+      b.addEventListener('click', function(e){ e.stopPropagation(); toggleFavorite(b.getAttribute('data-id')); });
+    });
+    $all('[data-action="toggle-select"]', grid).forEach(function(el){
+      el.addEventListener('click', function(e){ e.stopPropagation(); toggleSelected(el.getAttribute('data-id')); });
+    });
+  }
+
+  function renderToolbar(){
+    var row = $('#toolbarRow');
+    row.hidden = state.items.length===0;
+    var sortLabels = {newest:'Newest', oldest:'Oldest', alpha:'A\u2013Z', alpha_desc:'Z\u2013A', platform:'Platform', updated:'Recently edited'};
+    $('#sortMenuBtn').innerHTML = ICONS.sortIcon+' '+(sortLabels[state.sortBy]||'Newest');
+    $all('[data-sort]', $('#sortMenu')).forEach(function(b){
+      b.classList.toggle('active', b.getAttribute('data-sort')===state.sortBy);
+    });
+    $('#favoritesFirstToggle').checked = !!state.favoritesFirst;
+    var selectBtn = $('#selectModeBtn');
+    selectBtn.textContent = selectMode ? 'Done' : 'Select';
+    selectBtn.classList.toggle('active', selectMode);
+
+    var selectAllBtn = $('#selectAllBtn');
+    selectAllBtn.hidden = !selectMode;
+    if(selectMode){
+      var visibleIds = getFilteredItems().map(function(it){ return it.id; });
+      var allSelected = visibleIds.length>0 && visibleIds.every(function(id){ return !!selectedIds[id]; });
+      selectAllBtn.textContent = allSelected ? 'Deselect all' : 'Select all';
+    }
+  }
+
+  function toggleFavorite(id){
+    var item = state.items.filter(function(i){ return i.id===id; })[0];
+    if(!item) return;
+    item.favorite = !item.favorite;
+    item.updatedAt = Date.now();
+    persist();
+    queueSync('items', item);
+    renderGrid();
+  }
+
+  function toggleSelected(id){
+    if(selectedIds[id]) delete selectedIds[id]; else selectedIds[id] = true;
+    renderGrid();
+    renderBulkBar();
+    renderToolbar(); // keep "Select all"/"Deselect all" label in sync
+  }
+
+  function renderBulkBar(){
+    var count = Object.keys(selectedIds).length;
+    var bar = $('#bulkBar');
+    bar.hidden = !selectMode || count===0;
+    $('#bulkCount').textContent = count + ' selected';
+  }
+
+  function renderAll(){ renderTopicStrip(); renderGrid(); renderToolbar(); renderBulkBar(); }
+
+  /* ---------------- modals: generic ---------------- */
+  function showModal(backdrop){
+    backdrop.hidden = false;
+    requestAnimationFrame(function(){ backdrop.classList.add('open'); });
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal(backdrop){
+    backdrop.classList.remove('open');
+    document.body.style.overflow = '';
+    setTimeout(function(){ backdrop.hidden = true; }, 200);
+  }
+
+  /* ---------------- item modal ---------------- */
+  function getSelectedTopicIds(){
+    return $all('.topic-pick-chip.selected[data-topic-id]').map(function(c){ return c.getAttribute('data-topic-id'); });
+  }
+
+  function populateTopicPicker(selectedIds){
+    var wrap = $('#topicPicker');
+    var chips = state.topics.map(function(t){
+      var selected = selectedIds.indexOf(t.id)!==-1;
+      var c = topicColor(t);
+      return '<button type="button" class="topic-pick-chip'+(selected?' selected':'')+'" data-topic-id="'+t.id+'" style="--chip-color:'+c.base+'">'+escapeHtml(t.name)+'</button>';
+    }).join('');
+    wrap.innerHTML = '<div class="topic-pick-list">'+chips+
+      '<button type="button" class="topic-pick-chip add-new" id="inlineAddTopicBtn">+ New</button></div>'+
+      '<div class="inline-new-topic" id="inlineNewTopicForm" hidden>'+
+        '<input type="text" id="inlineNewTopicInput" placeholder="Topic name" maxlength="30">'+
+        '<button type="button" id="inlineNewTopicConfirm" class="btn-primary sm">Add</button>'+
+      '</div>';
+    $all('.topic-pick-chip[data-topic-id]', wrap).forEach(function(chip){
+      chip.addEventListener('click', function(){ chip.classList.toggle('selected'); });
+    });
+    var addBtn = $('#inlineAddTopicBtn');
+    if(addBtn) addBtn.addEventListener('click', function(){
+      $('#inlineNewTopicForm').hidden = false;
+      $('#inlineNewTopicInput').focus();
+    });
+    var confirmBtn = $('#inlineNewTopicConfirm');
+    if(confirmBtn) confirmBtn.addEventListener('click', function(){
+      var input = $('#inlineNewTopicInput');
+      var name = input.value.trim();
+      if(!name) return;
+      var current = getSelectedTopicIds();
+      var topic = createTopic(name);
+      current.push(topic.id);
+      renderTopicStrip();
+      populateTopicPicker(current);
+    });
+  }
+
+  function openItemModal(id){
+    editingItemId = id || null;
+    var backdrop = $('#itemModalBackdrop');
+    var form = $('#itemForm');
+    form.reset();
+    var item = id ? state.items.filter(function(i){return i.id===id;})[0] : null;
+    populateTopicPicker(item ? item.topicIds : []);
+    $('#itemModalTitle').textContent = item ? 'Edit saved item' : 'Save something new';
+    $('#fieldTitle').value = item ? item.title : '';
+    $('#fieldPlatform').value = item ? item.platform : 'instagram';
+    $('#fieldUrl').value = item ? (item.url||'') : '';
+    $('#fieldThumb').value = item ? (item.thumb||'') : '';
+    $('#fieldNotes').value = item ? (item.notes||'') : '';
+    var panel = $('#moreDetailsPanel');
+    var hasExtra = item && (item.thumb || item.notes);
+    panel.classList.toggle('open', !!hasExtra);
+    $('#moreDetailsToggle').textContent = hasExtra ? '– Hide details' : '+ More details (optional)';
+    showModal(backdrop);
+    setTimeout(function(){ $('#fieldUrl').focus(); }, 50);
+  }
+
+  function deleteItemFlow(id){
+    var item = state.items.filter(function(i){return i.id===id;})[0];
+    if(!item) return;
+    showConfirm('Delete "'+item.title+'"? This can\'t be undone.', function(){
+      queueSync('items', tombstoneFor(item));
+      state.items = state.items.filter(function(i){ return i.id!==id; });
+      persist();
+      renderAll();
+      showToast('Deleted');
+    });
+  }
+
+  /* ---------------- topic manage modal ---------------- */
+  function openTopicManageModal(){
+    renderTopicManageList();
+    showModal($('#topicModalBackdrop'));
+  }
+
+  function renderTopicManageList(){
+    var list = $('#topicManageList');
+    if(state.topics.length===0){
+      list.innerHTML = '<p class="hint">No topics yet. Add your first one below.</p>';
+      return;
+    }
+    list.innerHTML = state.topics.map(function(t){
+      return '<div class="topic-manage-row"><span class="chip-dot" style="background:'+topicColor(t).base+'"></span>'+
+        '<input type="text" class="topic-rename-input" value="'+escapeHtml(t.name)+'" maxlength="30" data-id="'+t.id+'">'+
+        '<span class="topic-manage-count">'+itemCountForTopic(t.id)+'</span>'+
+        '<button type="button" class="icon-btn sm" data-delete-topic="'+t.id+'" aria-label="Delete topic">'+ICONS.trash+'</button></div>';
+    }).join('');
+
+    $all('.topic-rename-input', list).forEach(function(input){
+      input.addEventListener('change', function(){
+        var t = getTopicById(input.getAttribute('data-id'));
+        var val = input.value.trim();
+        if(val){ t.name = val; t.updatedAt = Date.now(); persist(); queueSync('topics', t); renderTopicStrip(); }
+        else input.value = t.name;
+      });
+    });
+    $all('[data-delete-topic]', list).forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var id = btn.getAttribute('data-delete-topic');
+        var t = getTopicById(id);
+        showConfirm('Delete topic "'+t.name+'"? Items keep their other topics but lose this one.', function(){
+          queueSync('topics', tombstoneFor(t));
+          state.topics = state.topics.filter(function(x){ return x.id!==id; });
+          state.items.forEach(function(it){
+            if(it.topicIds.indexOf(id)===-1) return;
+            it.topicIds = it.topicIds.filter(function(tid){ return tid!==id; });
+            it.updatedAt = Date.now();
+            queueSync('items', it);
+          });
+          if(activeTopicId===id) activeTopicId = 'all';
+          persist();
+          renderTopicManageList();
+          renderAll();
+          showToast('Topic deleted');
+        });
+      });
+    });
+  }
+
+  /* ---------------- confirm modal ---------------- */
+  // `options.label` and `options.danger` let call sites override the button
+  // text/styling — it defaults to a red "Delete" button since that's the
+  // most common use, but that wording is wrong for non-destructive
+  // confirmations (e.g. "save this duplicate anyway?").
+  function showConfirm(message, onConfirm, options){
+    options = options || {};
+    $('#confirmMessage').textContent = message;
+    var okBtn = $('#confirmOk');
+    okBtn.textContent = options.label || 'Delete';
+    okBtn.className = (options.danger===false) ? 'btn-primary' : 'btn-danger';
+    confirmCallback = onConfirm;
+    showModal($('#confirmModalBackdrop'));
+  }
+
+  /* ---------------- toast ---------------- */
+  function showToast(msg){
+    var container = $('#toastContainer');
+    var toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = msg;
+    container.appendChild(toast);
+    requestAnimationFrame(function(){ toast.classList.add('show'); });
+    setTimeout(function(){
+      toast.classList.remove('show');
+      setTimeout(function(){ toast.remove(); }, 250);
+    }, 2200);
+  }
+
+  /* ---------------- export / import / clear ---------------- */
+  function exportData(){
+    var blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'sortagram-backup-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Backup downloaded');
+  }
+
+  function clearAllData(){
+    var msg = (window.Sync && window.Sync.user)
+      ? 'Delete everything in your stash on every synced device? This cannot be undone.'
+      : 'Delete everything in your stash? This cannot be undone.';
+    showConfirm(msg, function(){
+      state.topics.forEach(function(t){ queueSync('topics', tombstoneFor(t)); });
+      state.items.forEach(function(i){ queueSync('items', tombstoneFor(i)); });
+      state = {topics:[], items:[], theme:state.theme};
+      activeTopicId = 'all';
+      persist();
+      renderAll();
+      showToast('Cleared');
+    });
+  }
+
+  /* ---------------- import from html ---------------- */
+  var MAX_IMPORT_CANDIDATES = 1000;
+  var htmlImportCandidates = [];
+
+  function findOrCreateTopicByName(name, isCreator){
+    var lower = name.toLowerCase();
+    for(var i=0;i<state.topics.length;i++){
+      if(state.topics[i].name.toLowerCase()===lower) return state.topics[i];
+    }
+    return createTopic(name, isCreator);
+  }
+
+  function detectPlatformFromUrl(url){
+    try{
+      var host = new URL(url, window.location.href).hostname.replace(/^www\./,'').toLowerCase();
+      if(host.indexOf('instagram.com')!==-1 || host.indexOf('instagr.am')!==-1) return 'instagram';
+      if(host.indexOf('tiktok.com')!==-1) return 'tiktok';
+      if(host.indexOf('pinterest.')!==-1 || host==='pin.it') return 'pinterest';
+      if(host.indexOf('youtube.com')!==-1 || host==='youtu.be') return 'youtube';
+      if(host.indexOf('facebook.com')!==-1 || host==='fb.watch') return 'facebook';
+      if(host.indexOf('twitter.com')!==-1 || host.indexOf('x.com')!==-1) return 'twitter';
+      return 'other';
+    }catch(e){ return 'other'; }
+  }
+
+  function extractUsernameHint(url, platform){
+    try{
+      var parts = new URL(url, window.location.href).pathname.split('/').filter(Boolean);
+      if(platform==='tiktok'){
+        var at = parts.filter(function(p){ return p.indexOf('@')===0; })[0];
+        if(at) return at;
+      }
+      if(platform==='twitter' && parts.length>=2 && parts[1]==='status') return '@'+parts[0];
+      if(platform==='instagram' && parts.length>=3 && ['p','reel','tv'].indexOf(parts[1])!==-1) return '@'+parts[0];
+      if(platform==='facebook' && parts.length>=2 && ['videos','posts','photos','reel'].indexOf(parts[1])!==-1 && !/^\d+$/.test(parts[0])) return '@'+parts[0];
+    }catch(e){}
+    return '';
+  }
+
+  function extractContentTypeHint(url, platform){
+    var path = '';
+    try{ path = new URL(url, window.location.href).pathname.toLowerCase(); }catch(e){}
+    if(platform==='instagram'){
+      if(path.indexOf('/reel/')!==-1) return 'Reel';
+      if(path.indexOf('/tv/')!==-1) return 'IGTV video';
+      return 'Post';
+    }
+    if(platform==='tiktok') return 'video';
+    if(platform==='youtube') return path.indexOf('/shorts/')!==-1 ? 'Short' : 'video';
+    if(platform==='pinterest') return 'Pin';
+    if(platform==='facebook') return path.indexOf('/reel/')!==-1 ? 'Reel' : (path.indexOf('/watch')!==-1 ? 'video' : 'post');
+    if(platform==='twitter') return 'post';
+    return '';
+  }
+
+  var DATE_RE = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4}\b|\b\d{4}-\d{2}-\d{2}\b/i;
+
+  // Lightweight keyword classifier for auto-tagging imports with a broad topic
+  // (Food, Tech, etc.) alongside the creator tag. Checked against title+notes text.
+  // Matches whole words only (via \b boundaries) — plain substring matching
+  // previously misfired, e.g. "run" (Fitness) matching inside "brunch" or
+  // "prune" (Food), so a food video would get tagged Fitness instead.
+  var CATEGORY_KEYWORDS = {
+    'Food': ['recipe','recipes','cooking','baking','baked','kitchen','dinner','lunch','breakfast','meal','pasta','dessert','snack','food','chef','ingredient','sauce','soup','grill','cocktail','vegan','vegetarian'],
+    'Tech': ['tech','software','coding','programming','startup','gadget','iphone','android','laptop','computer','chatgpt'],
+    'Fitness': ['workout','fitness','gym','exercise','training','muscle','cardio','yoga','running','stretching','reps','pushups','squats'],
+    'Fashion': ['outfit','fashion','style','ootd','wardrobe','sneaker','accessory'],
+    'Travel': ['travel','vacation','flight','hotel','destination','itinerary','airport','backpack','tourist'],
+    'Home & DIY': ['diy','home decor','decor','renovation','cleaning','organize','organization','furniture','garden','interior'],
+    'Beauty': ['makeup','skincare','beauty','haircare','cosmetic'],
+    'Money': ['finance','budget','saving','investing','crypto','side hustle'],
+    'Quotes': ['quote','quotes','motivation','motivational','inspiration','inspirational','affirmation'],
+    'Books': ['book','books','novel','reading','author','bookclub','bookish','library'],
+    'Music': ['music','song','songs','album','playlist','concert','lyrics','artist','band'],
+    'Sports': ['football','basketball','soccer','baseball','tennis','golf','sports','athlete','match','tournament'],
+    'Pets': ['dog','dogs','cat','cats','puppy','kitten','pet','pets','vet']
+  };
+  var CATEGORY_REGEX_CACHE = null;
+  function buildCategoryRegexCache(){
+    var cache = {};
+    for(var category in CATEGORY_KEYWORDS){
+      var words = CATEGORY_KEYWORDS[category];
+      cache[category] = words.map(function(w){
+        var escaped = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp('\\b' + escaped + '\\b', 'i');
+      });
+    }
+    return cache;
+  }
+  function categorizeText(text){
+    if(!text) return '';
+    if(!CATEGORY_REGEX_CACHE) CATEGORY_REGEX_CACHE = buildCategoryRegexCache();
+    for(var category in CATEGORY_REGEX_CACHE){
+      var regexes = CATEGORY_REGEX_CACHE[category];
+      for(var i=0;i<regexes.length;i++){
+        if(regexes[i].test(text)) return category;
+      }
+    }
+    return '';
+  }
+  function extractDateHint(text){ var m = text && text.match(DATE_RE); return m ? m[0] : ''; }
+
+  function buildFallbackTitle(href, platform, dateHint){
+    var plat = PLATFORMS[platform] || PLATFORMS.other;
+    var typeHint = extractContentTypeHint(href, platform);
+    var userHint = extractUsernameHint(href, platform);
+    var title = platform==='other' ? 'Saved link' : (plat.label + (typeHint ? ' '+typeHint : ''));
+    if(userHint) title += ' by ' + userHint;
+    if(dateHint) title += ' — saved ' + dateHint;
+    return title;
+  }
+
+  function firstSentenceOrSlice(text, maxLen){
+    if(!text) return '';
+    var m = text.slice(0, maxLen+40).match(/^(.{15,}?[.!?])(\s|$)/);
+    if(m && m[1].length <= maxLen+20) return m[1].trim();
+    return text.length > maxLen ? text.slice(0,maxLen).trim() : text;
+  }
+
+  var BAD_IMG_PATTERN = /pixel|spacer|blank\.(gif|png)|transparent|1x1|loading|placeholder-?icon/i;
+  var GENERIC_ALT_PATTERN = /^(image|photo|photograph|thumbnail|thumb|preview|video|video preview|icon|picture|img|media)\.?$/i;
+
+  function imgSrcCandidate(img){
+    if(!img) return '';
+    var src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') ||
+      img.getAttribute('data-original') || img.getAttribute('data-thumb') || '';
+    if(!src){
+      var srcset = img.getAttribute('srcset') || img.getAttribute('data-srcset');
+      if(srcset) src = srcset.split(',')[0].trim().split(/\s+/)[0] || '';
+    }
+    if(src && BAD_IMG_PATTERN.test(src)) return '';
+    return src;
+  }
+
+  function findThumbnail(a, container){
+    var direct = imgSrcCandidate(a.querySelector('img'));
+    if(direct) return direct;
+    if(container){
+      var inContainer = imgSrcCandidate(container.querySelector('img'));
+      if(inContainer) return inContainer;
+    }
+    var sib = a.parentElement;
+    for(var i=0; sib && i<2; i++, sib=sib.parentElement){
+      var prev = sib.previousElementSibling, next = sib.nextElementSibling;
+      var fromPrev = prev ? imgSrcCandidate(prev.tagName==='IMG'?prev:prev.querySelector('img')) : '';
+      if(fromPrev) return fromPrev;
+      var fromNext = next ? imgSrcCandidate(next.tagName==='IMG'?next:next.querySelector('img')) : '';
+      if(fromNext) return fromNext;
+    }
+    // Wider fallback: climb further and search the whole subtree at each level.
+    var node = a.parentElement, hop = 0;
+    while(node && hop<4 && node.tagName!=='BODY' && node.tagName!=='HTML'){
+      var found = imgSrcCandidate(node.querySelector('img'));
+      if(found) return found;
+      node = node.parentElement;
+      hop++;
+    }
+    return '';
+  }
+
+  function directTextOf(el){
+    var t = '';
+    for(var i=0;i<el.childNodes.length;i++){
+      if(el.childNodes[i].nodeType===3) t += el.childNodes[i].textContent;
+    }
+    return t.trim();
+  }
+
+  var OWNER_LABEL_RE = /^owner:?$/i;
+  var OWNER_INLINE_RE = /^owner\s*[:\-\u2013]?\s+(\S+)/i;
+
+  function searchSubtreeForOwnerLabel(container){
+    var all = container.querySelectorAll('*');
+    for(var i=0;i<all.length;i++){
+      var el = all[i];
+      var direct = directTextOf(el);
+
+      // Pattern A: "Owner: username", "Owner - username", or "Owner username" as one element's own text.
+      var inline = direct.match(OWNER_INLINE_RE);
+      if(inline && inline[1] && inline[1].length<60) return inline[1];
+
+      // Pattern B: "Owner" alone as a label, value in a nearby sibling.
+      if(!OWNER_LABEL_RE.test(direct)) continue;
+      var candidates = [];
+      if(el.nextElementSibling) candidates.push(el.nextElementSibling);
+      if(el.previousElementSibling) candidates.push(el.previousElementSibling);
+      if(el.parentElement && el.parentElement.nextElementSibling) candidates.push(el.parentElement.nextElementSibling);
+      if(el.parentElement){
+        var sibs = el.parentElement.children;
+        for(var s=0;s<sibs.length;s++){ if(sibs[s]!==el) candidates.push(sibs[s]); }
+      }
+      for(var c=0;c<candidates.length;c++){
+        var val = (candidates[c].textContent||'').trim();
+        if(val && val.length<60 && !OWNER_LABEL_RE.test(val)) return val;
+      }
+    }
+    return '';
+  }
+
+  function findOwnerCreator(startEl){
+    var node = startEl, hop = 0;
+    while(node && hop<4 && node.tagName!=='BODY' && node.tagName!=='HTML'){
+      var found = searchSubtreeForOwnerLabel(node);
+      if(found) return '@'+found.replace(/^@/,'');
+      node = node.parentElement;
+      hop++;
+    }
+    return '';
+  }
+
+  function findLabeledTableValue(table, label){
+    if(!table) return '';
+    var labelLower = label.toLowerCase();
+    var rows = table.querySelectorAll('tr');
+    for(var i=0;i<rows.length;i++){
+      var cells = rows[i].querySelectorAll('td,th');
+      for(var c=0;c<cells.length-1;c++){
+        if((cells[c].textContent||'').trim().toLowerCase()===labelLower){
+          var val = (cells[c+1].textContent||'').trim();
+          if(val) return val;
+        }
+      }
+    }
+    return '';
+  }
+
+  function candidateFromAnchor(a){
+    var href = (a.getAttribute('href')||'').trim();
+    if(!href || href==='#' || /^javascript:/i.test(href) || /^mailto:/i.test(href) || /^tel:/i.test(href)) return null;
+
+    var anchorText = (a.textContent||'').trim().replace(/\s+/g,' ');
+
+    // Meta/Instagram-style table exports label each field ("Caption", "Username", "Name")
+    // as a <td> immediately followed by its value <td>, all within one <table> per saved
+    // item. Check this first since it's far more reliable than guessing from raw text.
+    var entryTable = a.closest('table');
+    var tableUsername = entryTable ? (findLabeledTableValue(entryTable,'Username') || findLabeledTableValue(entryTable,'Name')) : '';
+    var tableCaption = entryTable ? findLabeledTableValue(entryTable,'Caption') : '';
+
+    // Climb ancestors (bounded) to find real caption text — export tools often wrap each
+    // saved link in several sparse nested divs, so the immediate parent alone is often empty.
+    var node = a.parentElement;
+    var description = tableCaption;
+    var descContainer = node;
+    if(!description){
+      var hops = 0;
+      while(node && hops < 3 && node.tagName!=='BODY' && node.tagName!=='HTML'){
+        var t = (node.textContent||'').trim().replace(/\s+/g,' ');
+        var extra = (anchorText && t.indexOf(anchorText)===0) ? t.slice(anchorText.length).trim() : t;
+        if(extra.replace(/[^A-Za-z0-9]/g,'').length > 10){ description = extra; descContainer = node; break; }
+        descContainer = node;
+        node = node.parentElement;
+        hops++;
+      }
+    }
+    if(description.length>300) description = description.slice(0,300)+'…';
+
+    var nearbyImg = a.querySelector('img') || (descContainer ? descContainer.querySelector('img') : null);
+    var rawImgAlt = nearbyImg ? (nearbyImg.getAttribute('alt')||'').trim() : '';
+    var imgAlt = GENERIC_ALT_PATTERN.test(rawImgAlt) ? '' : rawImgAlt;
+    var thumb = findThumbnail(a, descContainer);
+
+    var platform = detectPlatformFromUrl(href);
+    var ownerRaw = tableUsername ? ('@'+tableUsername.replace(/^@/,'')) : findOwnerCreator(a);
+    var creator = ownerRaw || extractUsernameHint(href, platform);
+    var descNoOwner = description.replace(/#[A-Za-z0-9_]+/g,'');
+    if(ownerRaw && !tableCaption){
+      descNoOwner = descNoOwner.replace(new RegExp('\\bOwner:?\\b','gi'), '').replace(ownerRaw.replace(/^@/,''), '');
+    }
+    var cleanNotes = descNoOwner.replace(/\s+/g,' ').trim();
+    var dateHint = extractDateHint(description) || extractDateHint(imgAlt);
+    var notesMinusDate = dateHint ? cleanNotes.replace(dateHint,'').trim() : cleanNotes;
+    var hasMeaningfulNotes = notesMinusDate.replace(/[^A-Za-z0-9]/g,'').length > 8;
+
+    var rawTitleSource = anchorText || a.getAttribute('title') || a.getAttribute('aria-label') || imgAlt || '';
+    var looksLikeUrl = rawTitleSource && (rawTitleSource===href || /^https?:\/\//i.test(rawTitleSource));
+    var title = (rawTitleSource && !looksLikeUrl) ? rawTitleSource : '';
+    if(!title) title = hasMeaningfulNotes ? firstSentenceOrSlice(cleanNotes, 70) : buildFallbackTitle(href, platform, dateHint);
+    if(title.length>140) title = title.slice(0,140).trim();
+    var finalNotes = hasMeaningfulNotes ? cleanNotes : (dateHint ? ('Saved '+dateHint) : '');
+    var category = categorizeText(title + ' ' + finalNotes);
+
+    return {href:href, title:title, notes:finalNotes, thumb:thumb, platform:platform, creator:creator, category:category};
+  }
+
+  function findLinkInObject(obj, depth){
+    if(!obj || typeof obj!=='object' || (depth||0)>3) return '';
+    for(var k in obj){
+      if(typeof obj[k]==='string' && /^https?:\/\//i.test(obj[k])) return obj[k];
+    }
+    for(var k2 in obj){
+      var v = obj[k2];
+      if(v && typeof v==='object' && !Array.isArray(v)){
+        var found = findLinkInObject(v, (depth||0)+1);
+        if(found) return found;
+      }
+      if(Array.isArray(v)){
+        for(var i=0;i<v.length;i++){
+          if(v[i] && typeof v[i]==='object'){ var f2 = findLinkInObject(v[i], (depth||0)+1); if(f2) return f2; }
+        }
+      }
+    }
+    return '';
+  }
+
+  function findImageInObject(obj, depth){
+    if(!obj || typeof obj!=='object' || (depth||0)>2) return '';
+    for(var k in obj){
+      if(typeof obj[k]==='string' && /^https?:\/\//i.test(obj[k]) && /image|thumb|photo|picture|media/i.test(k)) return obj[k];
+    }
+    for(var k2 in obj){
+      var v = obj[k2];
+      if(v && typeof v==='object' && !Array.isArray(v)){
+        var found = findImageInObject(v, (depth||0)+1);
+        if(found) return found;
+      }
+    }
+    return '';
+  }
+
+  function shallowTextFields(obj){
+    var out = [];
+    if(!obj || typeof obj!=='object') return out;
+    for(var k in obj){
+      var v = obj[k];
+      if(typeof v==='string' && v && !/^https?:\/\//i.test(v)) out.push(v);
+    }
+    return out;
+  }
+
+  function timestampInObject(obj, depth){
+    if(!obj || typeof obj!=='object' || (depth||0)>3) return 0;
+    for(var k in obj){
+      if(/time|date/i.test(k) && typeof obj[k]==='number'){
+        var n = obj[k];
+        if(n > 1e12) return n;
+        if(n > 1e9) return n*1000;
+      }
+    }
+    for(var k2 in obj){
+      if(obj[k2] && typeof obj[k2]==='object'){
+        var nested = timestampInObject(obj[k2], (depth||0)+1);
+        if(nested) return nested;
+      }
+    }
+    return 0;
+  }
+
+  function candidateFromJsonEntry(entry){
+    if(!entry || typeof entry!=='object') return null;
+    var href = findLinkInObject(entry, 0);
+    if(!href) return null;
+    var platform = detectPlatformFromUrl(href);
+    var ts = timestampInObject(entry, 0);
+    var dateHint = ts ? formatDate(ts) : '';
+    var thumb = findImageInObject(entry, 0);
+
+    var texts = shallowTextFields(entry);
+    for(var k in entry){
+      var v = entry[k];
+      if(v && typeof v==='object'){
+        if(Array.isArray(v)) v.forEach(function(item){ texts = texts.concat(shallowTextFields(item)); });
+        else texts = texts.concat(shallowTextFields(v));
+      }
+    }
+
+    var creator = '', titleText = '';
+    texts.forEach(function(raw){
+      var val = (raw||'').trim();
+      if(!val || val.length>200) return;
+      if(!creator && /^[\w.]+$/.test(val) && val.length<40){ creator = '@'+val.replace(/^@/,''); }
+      else if(!titleText && /\s/.test(val) && val.length>3){ titleText = val; }
+    });
+    if(!creator) creator = extractUsernameHint(href, platform);
+
+    var title = titleText || buildFallbackTitle(href, platform, dateHint);
+    if(title.length>140) title = title.slice(0,140).trim();
+    var notes = (!titleText && dateHint) ? ('Saved '+dateHint) : '';
+    var category = categorizeText(title + ' ' + notes);
+
+    return {href:href, title:title, notes:notes, thumb:thumb, platform:platform, creator:creator, category:category};
+  }
+
+  function findEntryArray(root){
+    var best = null, bestScore = 0;
+    function scoreArray(arr){
+      var s = 0;
+      for(var i=0;i<arr.length && i<80;i++){
+        if(arr[i] && typeof arr[i]==='object' && findLinkInObject(arr[i],0)) s++;
+      }
+      return s;
+    }
+    function walk(node, depth){
+      if(!node || typeof node!=='object' || depth>4) return;
+      if(Array.isArray(node)){
+        var s = scoreArray(node);
+        if(s > bestScore){ bestScore = s; best = node; }
+        node.forEach(function(item){ walk(item, depth+1); });
+      } else {
+        for(var k in node) walk(node[k], depth+1);
+      }
+    }
+    walk(root, 0);
+    return best;
+  }
+
+  function parseJsonForImport(parsed){
+    var arr = findEntryArray(parsed);
+    if(!arr) return [];
+    var candidates = [];
+    var seen = {};
+    arr.forEach(function(entry){
+      if(candidates.length >= MAX_IMPORT_CANDIDATES) return;
+      var c = candidateFromJsonEntry(entry);
+      if(!c) return;
+      var key = normalizeUrlForDedup(c.href);
+      if(seen[key]) return;
+      seen[key] = true;
+      candidates.push(c);
+    });
+    return candidates;
+  }
+
+  function parseHtmlForImport(text){
+    var doc = new DOMParser().parseFromString(text, 'text/html');
+    var anchors = $all('a[href]', doc);
+    var candidates = [];
+    var seenHrefs = {};
+    for(var i=0; i<anchors.length && candidates.length<MAX_IMPORT_CANDIDATES; i++){
+      var c = candidateFromAnchor(anchors[i]);
+      if(!c) continue;
+      var key = normalizeUrlForDedup(c.href);
+      if(seenHrefs[key]) continue;
+      seenHrefs[key] = true;
+      candidates.push(c);
+    }
+    return candidates;
+  }
+
+  function existingUrlSet(){
+    var set = {};
+    state.items.forEach(function(it){ if(it.url) set[normalizeUrlForDedup(it.url)] = true; });
+    return set;
+  }
+
+  function updateImportCount(){
+    var checked = $all('#htmlImportList input[type="checkbox"]:checked').length;
+    var btn = $('#confirmHtmlImportBtn');
+    if(btn){ btn.textContent = checked ? ('Import '+checked+' item'+(checked===1?'':'s')) : 'Import'; btn.disabled = checked===0; }
+  }
+
+  function openHtmlImportPreview(candidates, headingText){
+    htmlImportCandidates = candidates;
+    $('#htmlImportHeading').textContent = headingText || 'Import items';
+    renderImportRows();
+    showModal($('#htmlImportModalBackdrop'));
+  }
+
+  function thumbHtml(c){
+    if(!c.thumb) return '';
+    return '<span class="import-row-thumb"><img src="'+escapeHtml(c.thumb)+'" alt="" loading="lazy" onerror="this.parentElement.remove();"></span>';
+  }
+
+  function renderImportRows(){
+    var candidates = htmlImportCandidates;
+    var includeCreator = $('#tagCreatorToggle').checked;
+    var includeCategory = $('#tagCategoryToggle').checked;
+    var existing = existingUrlSet();
+    var newTopicNames = {};
+    var dupCount = 0;
+
+    var rowsHtml = candidates.map(function(c, idx){
+      var isDup = !!existing[normalizeUrlForDedup(c.href)];
+      if(isDup) dupCount++;
+      if(includeCreator && c.creator){
+        var key = c.creator.toLowerCase();
+        var alreadyExists = state.topics.some(function(t){ return t.name.toLowerCase()===key; });
+        if(!alreadyExists && !newTopicNames[key]) newTopicNames[key] = c.creator;
+      }
+      if(includeCategory && c.category){
+        var catKey = c.category.toLowerCase();
+        var catExists = state.topics.some(function(t){ return t.name.toLowerCase()===catKey; });
+        if(!catExists && !newTopicNames[catKey]) newTopicNames[catKey] = c.category;
+      }
+      var plat = PLATFORMS[c.platform] || PLATFORMS.other;
+      var tagParts = [];
+      if(includeCreator && c.creator) tagParts.push('<span class="import-row-creator">'+escapeHtml(c.creator)+'</span>');
+      if(includeCategory && c.category) tagParts.push('<span class="import-row-creator" style="color:var(--ink-soft)">'+escapeHtml(c.category)+'</span>');
+      var tagsHtml = tagParts.length ? tagParts.join(' · ') : '<span style="opacity:.55">nothing detected</span>';
+      return '<label class="import-row">'+
+        '<input type="checkbox" data-import-idx="'+idx+'" '+(isDup?'':'checked')+'>'+
+        thumbHtml(c) +
+        '<span class="platform-badge" style="background:'+plat.bg+'">'+plat.mono+'</span>'+
+        '<span class="import-row-text"><span class="import-row-title">'+escapeHtml(c.title)+'</span>'+
+        '<span class="import-row-tags">'+tagsHtml+'</span></span>'+
+        (isDup ? '<span class="dup-badge">Already saved</span>' : '')+
+        '</label>';
+    }).join('');
+
+    $('#htmlImportList').innerHTML = rowsHtml;
+
+    var newTopicList = Object.keys(newTopicNames).map(function(k){ return newTopicNames[k]; });
+    $('#htmlImportSummary').innerHTML = '<strong>'+candidates.length+'</strong> item'+(candidates.length===1?'':'s')+' found'+
+      (dupCount ? ', <strong>'+dupCount+'</strong> already in your stash' : '') + '.' +
+      (newTopicList.length ? ' <strong>'+newTopicList.length+'</strong> new topic'+(newTopicList.length===1?'':'s')+' will be added.' : ' No creators or categories detected — items will import untagged.');
+
+    $('#htmlImportTopicsPreview').innerHTML = newTopicList.slice(0,20).map(function(name){
+      return '<span class="tag" style="--tag-color:var(--accent)">'+escapeHtml(name)+'</span>';
+    }).join('');
+
+    updateImportCount();
+  }
+
+  function commitHtmlImport(){
+    var includeCreator = $('#tagCreatorToggle').checked;
+    var includeCategory = $('#tagCategoryToggle').checked;
+    var checkedBoxes = $all('#htmlImportList input[type="checkbox"]:checked');
+    var count = 0;
+    checkedBoxes.forEach(function(cb){
+      var idx = parseInt(cb.getAttribute('data-import-idx'),10);
+      var c = htmlImportCandidates[idx];
+      if(!c) return;
+      var topicIds = [];
+      if(includeCreator && c.creator) topicIds.push(findOrCreateTopicByName(c.creator, true).id);
+      if(includeCategory && c.category) topicIds.push(findOrCreateTopicByName(c.category, false).id);
+      state.items.push({
+        id:uid('item'), title:c.title, platform:c.platform, url:c.href, thumb:c.thumb,
+        notes:c.notes, topicIds:topicIds, createdAt:Date.now()
+      });
+      count++;
+    });
+    persist();
+    closeModal($('#htmlImportModalBackdrop'));
+    renderAll();
+    showToast('Imported '+count+' item'+(count===1?'':'s'));
+  }
+
+  /* ---------------- event bindings ---------------- */
+  $('#fieldUrl').addEventListener('input', function(e){
+    var val = e.target.value.trim();
+    if(!val) return;
+    var detected = detectPlatformFromUrl(val);
+    if(detected !== 'other') $('#fieldPlatform').value = detected;
+  });
+  $('#moreDetailsToggle').addEventListener('click', function(){
+    var panel = $('#moreDetailsPanel');
+    var nowOpen = panel.classList.toggle('open');
+    this.textContent = nowOpen ? '– Hide details' : '+ More details (optional)';
+  });
+
+  $('#addItemBtn').addEventListener('click', function(){ openItemModal(); });
+  $('#themeToggle').addEventListener('click', toggleTheme);
+
+  $('#sortMenuBtn').addEventListener('click', function(e){
+    e.stopPropagation();
+    var menu = $('#sortMenu');
+    menu.hidden = !menu.hidden;
+    $('#sortMenuBtn').setAttribute('aria-expanded', String(!menu.hidden));
+  });
+  $('#sortMenu').addEventListener('click', function(e){
+    var btn = e.target.closest('[data-sort]');
+    if(!btn) return;
+    state.sortBy = btn.getAttribute('data-sort');
+    persist();
+    $('#sortMenu').hidden = true;
+    $('#sortMenuBtn').setAttribute('aria-expanded', 'false');
+    renderToolbar();
+    renderGrid();
+  });
+  $('#favoritesFirstToggle').addEventListener('change', function(e){
+    state.favoritesFirst = e.target.checked;
+    persist();
+    renderGrid();
+  });
+  document.addEventListener('click', function(e){
+    var menu = $('#sortMenu');
+    if(menu && !menu.hidden && !menu.contains(e.target) && e.target.id!=='sortMenuBtn'){
+      menu.hidden = true;
+      $('#sortMenuBtn').setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  $('#selectModeBtn').addEventListener('click', function(){
+    selectMode = !selectMode;
+    selectedIds = {};
+    renderToolbar();
+    renderGrid();
+    renderBulkBar();
+  });
+  $('#selectAllBtn').addEventListener('click', function(){
+    var visibleItems = getFilteredItems();
+    var allSelected = visibleItems.length>0 && visibleItems.every(function(it){ return !!selectedIds[it.id]; });
+    if(allSelected){
+      selectedIds = {};
+    } else {
+      visibleItems.forEach(function(it){ selectedIds[it.id] = true; });
+    }
+    renderToolbar();
+    renderGrid();
+    renderBulkBar();
+  });
+  $('#bulkCancelBtn').addEventListener('click', function(){
+    selectMode = false;
+    selectedIds = {};
+    renderToolbar();
+    renderGrid();
+    renderBulkBar();
+  });
+  $('#bulkDeleteBtn').addEventListener('click', function(){
+    var ids = Object.keys(selectedIds);
+    if(ids.length===0) return;
+    showConfirm('Delete '+ids.length+' item'+(ids.length===1?'':'s')+'? This can\'t be undone.', function(){
+      ids.forEach(function(id){
+        var item = state.items.filter(function(i){ return i.id===id; })[0];
+        if(!item) return;
+        queueSync('items', tombstoneFor(item));
+        state.items = state.items.filter(function(i){ return i.id!==id; });
+      });
+      selectMode = false;
+      selectedIds = {};
+      persist();
+      renderAll();
+      showToast('Deleted '+ids.length+' item'+(ids.length===1?'':'s'));
+    });
+  });
+  $('#bulkAddTopicBtn').addEventListener('click', function(){
+    var ids = Object.keys(selectedIds);
+    if(ids.length===0) return;
+    openBulkTopicPicker(ids);
+  });
+
+  function openBulkTopicPicker(ids){
+    var host = document.createElement('div');
+    host.style.cssText = 'position:fixed;inset:0;background:rgba(10,10,14,.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    var chips = state.topics.map(function(t){
+      return '<button type="button" class="topic-pick-chip" data-topic-id="'+t.id+'" style="--chip-color:'+topicColor(t).base+'">'+escapeHtml(t.name)+'</button>';
+    }).join('');
+    host.innerHTML = '<div style="background:var(--surface);color:var(--ink);width:min(340px,90vw);border-radius:16px;padding:20px;box-shadow:var(--shadow-lg);">'+
+      '<h3 style="margin:0 0 12px;font-size:1.05rem;">Add topic to '+ids.length+' item'+(ids.length===1?'':'s')+'</h3>'+
+      '<div class="topic-pick-list">'+chips+'</div>'+
+      '<button type="button" id="bulkTopicCancel" style="width:100%;margin-top:14px;padding:9px;border:none;background:none;color:var(--ink-soft);font-size:.85rem;">Cancel</button>'+
+    '</div>';
+    document.body.appendChild(host);
+    host.addEventListener('click', function(e){ if(e.target===host) host.remove(); });
+    host.querySelector('#bulkTopicCancel').addEventListener('click', function(){ host.remove(); });
+    $all('.topic-pick-chip', host).forEach(function(chip){
+      chip.addEventListener('click', function(){
+        var topicId = chip.getAttribute('data-topic-id');
+        ids.forEach(function(id){
+          var item = state.items.filter(function(i){ return i.id===id; })[0];
+          if(!item) return;
+          if(item.topicIds.indexOf(topicId)===-1) item.topicIds.push(topicId);
+          item.updatedAt = Date.now();
+          queueSync('items', item);
+        });
+        persist();
+        host.remove();
+        selectMode = false;
+        selectedIds = {};
+        renderAll();
+        showToast('Topic added to '+ids.length+' item'+(ids.length===1?'':'s'));
+      });
+    });
+  }
+
+  $('#searchInput').addEventListener('input', function(e){
+    searchQuery = e.target.value;
+    renderGrid();
+  });
+
+  $('#itemForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var title = $('#fieldTitle').value.trim();
+    var url = $('#fieldUrl').value.trim();
+    if(!title && !url){ showToast('Add a link or a title to save this'); return; }
+    var platform = $('#fieldPlatform').value;
+    if(!title) title = buildFallbackTitle(url, platform, '');
+    var data = {
+      title:title,
+      platform:platform,
+      url:url,
+      thumb:$('#fieldThumb').value.trim(),
+      notes:$('#fieldNotes').value.trim(),
+      topicIds:getSelectedTopicIds()
+    };
+    data.updatedAt = Date.now();
+
+    function doSave(){
+      if(editingItemId){
+        var item = state.items.filter(function(i){return i.id===editingItemId;})[0];
+        if(item){ for(var k in data){ item[k]=data[k]; } queueSync('items', item); }
+        showToast('Saved');
+      } else {
+        data.id = uid('item');
+        data.createdAt = Date.now();
+        data.favorite = false;
+        state.items.push(data);
+        queueSync('items', data);
+        showToast('Added to your stash');
+      }
+      persist();
+      closeModal($('#itemModalBackdrop'));
+      renderAll();
+    }
+
+    // Only warn about duplicates on new saves (not edits), and only when
+    // there's an actual URL to compare — title-only saves can't collide.
+    var isDuplicate = !editingItemId && url && existingUrlSet()[normalizeUrlForDedup(url)];
+    if(isDuplicate){
+      closeModal($('#itemModalBackdrop'));
+      showConfirm('You already saved this link. Save it again anyway?', doSave, {label:'Save anyway', danger:false});
+    } else {
+      doSave();
+    }
+  });
+
+  $('#newTopicForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var input = $('#newTopicName');
+    var name = input.value.trim();
+    if(!name) return;
+    createTopic(name);
+    input.value = '';
+    renderTopicManageList();
+    renderTopicStrip();
+    showToast('Topic added');
+  });
+
+  $('#confirmOk').addEventListener('click', function(){
+    var cb = confirmCallback;
+    closeModal($('#confirmModalBackdrop'));
+    if(cb) cb();
+  });
+  $('#confirmCancel').addEventListener('click', function(){ closeModal($('#confirmModalBackdrop')); });
+
+  $all('[data-close]').forEach(function(btn){
+    btn.addEventListener('click', function(){ closeModal(btn.closest('.modal-backdrop')); });
+  });
+  $all('.modal-backdrop').forEach(function(bd){
+    bd.addEventListener('click', function(e){ if(e.target===bd) closeModal(bd); });
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key==='Escape'){
+      $all('.modal-backdrop:not([hidden])').forEach(function(bd){ closeModal(bd); });
+      $('#overflowMenu').hidden = true;
+      var sortMenu = $('#sortMenu');
+      if(sortMenu) sortMenu.hidden = true;
+    }
+  });
+
+  $('#menuToggle').addEventListener('click', function(e){
+    e.stopPropagation();
+    var menu = $('#overflowMenu');
+    menu.hidden = !menu.hidden;
+    if(!menu.hidden){
+      var since = state.firstOpened ? formatDate(state.firstOpened) : formatDate(Date.now());
+      $('#usageStat').textContent = 'Yours since '+since+' · opened '+state.opens+' time'+(state.opens===1?'':'s')+' on this device';
+    }
+  });
+  document.addEventListener('click', function(e){
+    var menu = $('#overflowMenu');
+    if(!menu.hidden && !menu.contains(e.target) && e.target.id!=='menuToggle'){
+      menu.hidden = true;
+    }
+  });
+  $('#overflowMenu').addEventListener('click', function(e){
+    var actionBtn = e.target.closest('[data-action]');
+    if(!actionBtn) return;
+    var act = actionBtn.getAttribute('data-action');
+    $('#overflowMenu').hidden = true;
+    if(act==='manage-topics') openTopicManageModal();
+    else if(act==='export') exportData();
+    else if(act==='import') $('#importFileInput').click();
+    else if(act==='import-html') $('#htmlImportFileInput').click();
+    else if(act==='clear-all') clearAllData();
+    else if(act==='sync-open') { if(window.Sync) window.Sync.openPanel(); }
+  });
+
+  /* ---------------- sync integration ---------------- */
+  // sync.js (loaded separately) reads/writes state through these three hooks
+  // rather than touching the closure variables directly.
+  window.getStashState = function(){ return state; };
+  window.persistStashState = function(next){ state = next; persist(); };
+  window.renderStashAll = function(){ renderAll(); };
+
+  function refreshSyncUI(){
+    var signedIn = !!(window.Sync && window.Sync.user);
+    var btn = $('#syncMenuBtn');
+    if(btn) btn.textContent = signedIn ? 'Manage sync' : 'Sync across devices';
+    $('#privacyNote').textContent = signedIn
+      ? '🔄 Syncing with your other devices.'
+      : '🔒 Everything stays on this device unless you turn on sync.';
+  }
+  window.addEventListener('stash-sync-changed', refreshSyncUI);
+  window.addEventListener('stash-sync-remote-update', function(){ renderAll(); });
+
+  $('#importFileInput').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      var parsed;
+      try{ parsed = JSON.parse(reader.result); }
+      catch(err){ showToast("That file doesn't look like valid JSON"); return; }
+
+      if(parsed && Array.isArray(parsed.topics) && Array.isArray(parsed.items)){
+        showConfirm('This looks like a full backup. Import will replace everything currently in your stash. Continue?', function(){
+          // Run through the same migration as a normal page load, so a
+          // backup from before favorites/topic-colors existed doesn't end
+          // up with items/topics missing those fields.
+          var migrated = migrateTopicsAndItems(parsed.topics, parsed.items);
+          state = {
+            topics:migrated.topics, items:migrated.items,
+            theme:state.theme, opens:state.opens, firstOpened:state.firstOpened,
+            // Keep this device's current view/sort preferences rather than
+            // silently resetting them — the backup is about content, not
+            // this device's display settings.
+            viewMode:state.viewMode, sortBy:state.sortBy, favoritesFirst:state.favoritesFirst
+          };
+          activeTopicId = 'all';
+          persist();
+          renderAll();
+          showToast('Backup imported');
+        }, {label:'Replace'});
+        return;
+      }
+
+      var candidates = [];
+      try{ candidates = parseJsonForImport(parsed); }
+      catch(err){ showToast('Could not read that JSON file'); return; }
+      if(candidates.length===0){ showToast('No importable links found in that JSON'); return; }
+      openHtmlImportPreview(candidates, 'Import from JSON');
+    };
+    reader.onerror = function(){ showToast('Could not read that file'); };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  $('#htmlImportFileInput').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    showToast('Reading file…');
+    var reader = new FileReader();
+    reader.onload = function(){
+      setTimeout(function(){
+        var candidates = [];
+        try{ candidates = parseHtmlForImport(reader.result); }
+        catch(err){ showToast('Could not read that HTML file'); return; }
+        if(candidates.length===0){ showToast('No links found in that file'); return; }
+        openHtmlImportPreview(candidates, 'Import from HTML');
+      }, 30);
+    };
+    reader.onerror = function(){ showToast('Could not read that HTML file'); };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+  $('#tagCreatorToggle').addEventListener('change', renderImportRows);
+  $('#tagCategoryToggle').addEventListener('change', renderImportRows);
+  $('#htmlImportList').addEventListener('change', function(e){
+    if(e.target.matches('input[type="checkbox"]')) updateImportCount();
+  });
+  $('#htmlImportSelectAll').addEventListener('click', function(){
+    $all('#htmlImportList input[type="checkbox"]').forEach(function(cb){ cb.checked = true; });
+    updateImportCount();
+  });
+  $('#htmlImportSelectNone').addEventListener('click', function(){
+    $all('#htmlImportList input[type="checkbox"]').forEach(function(cb){ cb.checked = false; });
+    updateImportCount();
+  });
+  $('#confirmHtmlImportBtn').addEventListener('click', commitHtmlImport);
+
+  /* ---------------- init ---------------- */
+  state.opens = (state.opens||0) + 1;
+  if(!state.firstOpened) state.firstOpened = Date.now();
+  persist();
+  applyTheme();
+  renderAll();
+  if(window.Sync) window.Sync.init().then(refreshSyncUI);
+
+})();
+</script>
+</body>
+</html>

@@ -92,10 +92,10 @@
 
   .icon-btn{
     display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px;
-    background:transparent; border:1px solid transparent; border-radius:var(--radius-pill); color:var(--ink-soft);
+    background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-pill); color:var(--ink);
     transition:background var(--dur) ease, color var(--dur) ease, border-color var(--dur) ease;
   }
-  .icon-btn:hover{background:var(--surface-2); color:var(--ink); border-color:var(--border);}
+  .icon-btn:hover{background:var(--accent-soft); color:var(--ink); border-color:var(--accent);}
   .icon-btn.sm{width:30px; height:30px;}
 
   .btn-primary{
@@ -108,10 +108,10 @@
   .btn-primary:active{transform:translateY(0); filter:brightness(.97);}
   .btn-primary.sm{padding:7px 14px; font-size:.82rem;}
   .btn-ghost{
-    background:transparent; border:1px solid var(--border); color:var(--ink); border-radius:var(--radius-pill);
-    padding:9px 18px; font-size:.9rem; font-weight:500; transition:background var(--dur) ease;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--ink); border-radius:var(--radius-pill);
+    padding:9px 18px; font-size:.9rem; font-weight:500; transition:background var(--dur) ease, border-color var(--dur) ease;
   }
-  .btn-ghost:hover{background:var(--surface-2);}
+  .btn-ghost:hover{background:var(--accent-soft); border-color:var(--accent);}
   .btn-danger{
     background:var(--danger); color:var(--danger-ink); border:none; border-radius:var(--radius-pill);
     padding:9px 18px; font-size:.9rem; font-weight:600; transition:filter var(--dur) ease;
@@ -121,13 +121,15 @@
 
   .overflow-menu{
     position:absolute; top:46px; right:0; background:var(--surface); border:1px solid var(--border);
-    border-radius:var(--radius-md); box-shadow:var(--shadow-lg); padding:6px; width:230px; z-index:30;
+    border-radius:var(--radius-md); box-shadow:var(--shadow-lg); padding:6px; width:250px; z-index:30;
   }
   .overflow-menu button{
-    display:block; width:100%; text-align:left; background:none; border:none; color:var(--ink);
-    padding:9px 10px; border-radius:var(--radius-sm); font-size:.88rem;
+    display:flex; flex-direction:column; gap:1px; width:100%; text-align:left; background:none; border:none; color:var(--ink);
+    padding:8px 10px; border-radius:var(--radius-sm); font-size:.88rem;
   }
   .overflow-menu button:hover{background:var(--surface-2);}
+  .menu-item-label{font-weight:500;}
+  .menu-item-desc{font-size:.72rem; color:var(--ink-soft); font-weight:400;}
   .overflow-menu .menu-divider{height:1px; background:var(--border); margin:6px 4px;}
   .privacy-note{font-size:.76rem; color:var(--ink-soft); padding:8px 10px 4px; line-height:1.4;}
   .usage-stat{font-size:.76rem; color:var(--ink-faint); padding:6px 10px 0; line-height:1.4;}
@@ -151,11 +153,11 @@
     max-width:1180px; margin:0 auto; padding:8px 20px 0; display:flex; justify-content:flex-end; gap:8px;
   }
   .toolbar-btn{
-    display:inline-flex; align-items:center; gap:5px; background:transparent; border:1px solid var(--border);
-    color:var(--ink-soft); border-radius:var(--radius-pill); padding:5px 12px; font-size:.78rem; font-weight:600;
+    display:inline-flex; align-items:center; gap:5px; background:var(--surface-2); border:1px solid var(--border);
+    color:var(--ink); border-radius:var(--radius-pill); padding:5px 12px; font-size:.78rem; font-weight:600;
     transition:background var(--dur) ease, color var(--dur) ease, border-color var(--dur) ease;
   }
-  .toolbar-btn:hover{background:var(--surface-2); color:var(--ink);}
+  .toolbar-btn:hover{background:var(--accent-soft); color:var(--ink); border-color:var(--accent);}
   .toolbar-btn.active{background:var(--accent-soft); border-color:var(--accent); color:var(--ink);}
   .sort-control{position:relative;}
   .sort-menu{
@@ -217,6 +219,7 @@
   }
   .chip:hover{transform:translateY(-1px); border-color:var(--ink-faint);}
   .chip-dot{width:8px; height:8px; border-radius:50%; background:var(--chip-color,var(--accent)); flex:none;}
+  .chip-creator-icon{display:inline-flex; color:var(--chip-color,var(--ink-faint)); flex:none; opacity:.75;}
   .chip-count{
     background:var(--surface-2); color:var(--ink-faint); border-radius:var(--radius-pill);
     padding:1px 7px; font-size:.72rem; font-weight:600;
@@ -289,6 +292,9 @@
   }
   .modal-backdrop.open .modal{transform:translateY(0);}
   .modal h2{font-size:1.2rem; margin-bottom:16px;}
+  .guide-section{margin-bottom:16px;}
+  .guide-section h3{font-family:var(--font-body); font-size:.85rem; font-weight:700; color:var(--accent-fill); text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px;}
+  .guide-section p{font-size:.92rem; line-height:1.5; color:var(--ink); margin:0;}
   .modal-sm{max-width:380px;}
   @media(min-width:640px){
     .modal-backdrop{align-items:center;}
@@ -314,6 +320,7 @@
     padding:6px 13px; font-size:.82rem; font-weight:500; transition:all var(--dur) ease;
   }
   .topic-pick-chip.selected{background:var(--chip-color); border-color:var(--chip-color); color:#fff;}
+  .topic-pick-chip.selected .chip-creator-icon{color:#fff; opacity:1;}
   .topic-pick-chip.add-new{border-style:dashed;}
   .inline-new-topic{display:flex; gap:8px; margin-top:10px;}
   .inline-new-topic input{flex:1; padding:8px 12px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); color:var(--ink);}
@@ -385,6 +392,9 @@
         <input id="searchInput" type="search" placeholder="Search your stash…" aria-label="Search saved items">
       </div>
       <div class="header-actions">
+        <button id="guideBtn" class="icon-btn" type="button" aria-label="Quick guide">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 1.7-2.4 3.4"/><path d="M12 17h.01"/></svg>
+        </button>
         <button id="themeToggle" class="icon-btn" type="button" aria-label="Toggle dark mode"></button>
         <button id="menuToggle" class="icon-btn" type="button" aria-label="More options">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
@@ -394,13 +404,36 @@
           Save
         </button>
         <div class="overflow-menu" id="overflowMenu" hidden>
-          <button type="button" data-action="manage-topics">Manage topics</button>
-          <button type="button" data-action="export">Export backup</button>
-          <button type="button" data-action="import">Import from JSON</button>
-          <button type="button" data-action="import-html">Import from HTML</button>
-          <button type="button" data-action="clear-all">Clear all data</button>
+          <button type="button" data-action="guide">
+            <span class="menu-item-label">Quick guide</span>
+            <span class="menu-item-desc">How everything works, in a minute</span>
+          </button>
           <div class="menu-divider"></div>
-          <button type="button" id="syncMenuBtn" data-action="sync-open">Sync across devices</button>
+          <button type="button" data-action="manage-topics">
+            <span class="menu-item-label">Manage topics</span>
+            <span class="menu-item-desc">Rename, add, or remove your topics</span>
+          </button>
+          <button type="button" data-action="export">
+            <span class="menu-item-label">Save a backup file</span>
+            <span class="menu-item-desc">Download everything as one file, just in case</span>
+          </button>
+          <button type="button" data-action="import">
+            <span class="menu-item-label">Restore from a backup file</span>
+            <span class="menu-item-desc">Load items from a file saved earlier</span>
+          </button>
+          <button type="button" data-action="import-html">
+            <span class="menu-item-label">Import saved posts</span>
+            <span class="menu-item-desc">From an exported Instagram/TikTok file</span>
+          </button>
+          <button type="button" data-action="clear-all">
+            <span class="menu-item-label">Clear all data</span>
+            <span class="menu-item-desc">Delete everything on this device</span>
+          </button>
+          <div class="menu-divider"></div>
+          <button type="button" id="syncMenuBtn" data-action="sync-open">
+            <span class="menu-item-label">Sync across devices</span>
+            <span class="menu-item-desc">Use the same stash on your phone and laptop</span>
+          </button>
           <div class="menu-divider"></div>
           <p class="usage-stat" id="usageStat"></p>
           <p class="privacy-note" id="privacyNote">🔒 Everything stays on this device unless you turn on sync.</p>
@@ -518,6 +551,40 @@
     </div>
   </div>
 
+  <!-- Quick guide modal -->
+  <div class="modal-backdrop" id="guideModalBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="guideHeading">
+      <h2 id="guideHeading">Quick guide</h2>
+      <div class="guide-section">
+        <h3>Saving something</h3>
+        <p>Tap <strong>+ Save</strong>, paste a link, and you're done — title and platform are detected automatically. Notes and a thumbnail are optional.</p>
+      </div>
+      <div class="guide-section">
+        <h3>Organizing</h3>
+        <p>Tag items with <strong>topics</strong> (like Food or Travel) and <strong>creators</strong> (like @someone) — up to you which, or both. Switch between viewing them together or separately using the row above your topic list.</p>
+      </div>
+      <div class="guide-section">
+        <h3>Finding things again</h3>
+        <p>Use search, or the <strong>Sort</strong> and <strong>Select</strong> buttons above your items — sort by date, name, or platform, star favorites to keep them on top, or select several items at once to delete or retag together.</p>
+      </div>
+      <div class="guide-section">
+        <h3>Bringing in existing saves</h3>
+        <p>Already have posts saved elsewhere? Use <strong>Import saved posts</strong> in the menu (⋮) with a file exported from Instagram/TikTok, and review what gets added before confirming.</p>
+      </div>
+      <div class="guide-section">
+        <h3>Using it on more than one device</h3>
+        <p><strong>Sync across devices</strong> in the menu gives you a short code — no account or email. Enter that same code on another device to link it.</p>
+      </div>
+      <div class="guide-section">
+        <h3>Your data</h3>
+        <p>Everything lives on your own device unless you turn on sync. <strong>Save a backup file</strong> anytime from the menu, just in case.</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-primary" data-close>Got it</button>
+      </div>
+    </div>
+  </div>
+
   <!-- HTML import preview modal -->
   <div class="modal-backdrop" id="htmlImportModalBackdrop" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="htmlImportHeading">
@@ -595,7 +662,8 @@
     starOutline:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 15.1 9l7.1 1-5.1 5 1.2 7.1-6.3-3.3-6.3 3.3 1.2-7.1-5.1-5 7.1-1Z"/></svg>',
     starFilled:'<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2.5 15.1 9l7.1 1-5.1 5 1.2 7.1-6.3-3.3-6.3 3.3 1.2-7.1-5.1-5 7.1-1Z"/></svg>',
     sortIcon:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12M9 12h6M11 16h2"/></svg>',
-    checkCircle:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.3 2.3 4.7-4.7"/></svg>'
+    checkCircle:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.3 2.3 4.7-4.7"/></svg>',
+    personIcon:'<svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>'
   };
 
   /* ---------------- helpers ---------------- */
@@ -801,14 +869,15 @@
   }
 
   /* ---------------- render: topic strip ---------------- */
-  function chipHTML(id, name, count, active, color){
+  function chipHTML(id, name, count, active, color, isCreator){
     var style = '';
     if(color){
       var tint = document.body.getAttribute('data-theme')==='dark' ? color.tintDark : color.tint;
       style = 'style="--chip-color:'+color.base+';--chip-tint:'+tint+'"';
     }
+    var creatorIcon = isCreator ? '<span class="chip-creator-icon" title="Creator">'+ICONS.personIcon+'</span>' : '';
     return '<button type="button" class="chip'+(active?' chip-active':'')+'" data-topic-id="'+id+'" '+style+'>'+
-      (color ? '<span class="chip-dot"></span>' : '') + escapeHtml(name) +
+      (color ? '<span class="chip-dot"></span>' : '') + creatorIcon + escapeHtml(name) +
       '<span class="chip-count">'+count+'</span></button>';
   }
 
@@ -837,7 +906,7 @@
     var total = state.items.length;
     var html = chipHTML('all','All', total, activeTopicId==='all', null);
     shown.forEach(function(t){
-      html += chipHTML(t.id, t.name, itemCountForTopic(t.id), activeTopicId===t.id, topicColor(t));
+      html += chipHTML(t.id, t.name, itemCountForTopic(t.id), activeTopicId===t.id, topicColor(t), t.isCreator);
     });
     html += '<button type="button" class="chip chip-add" id="manageTopicsChip">+ Topics</button>';
     strip.innerHTML = html;
@@ -913,7 +982,7 @@
       '<div class="starter-chips">'+chips+'</div>'+
       '<div class="onboarding-actions">'+
         '<button type="button" class="btn-primary" id="onboardingAddBtn">+ Save your first item</button>'+
-        '<button type="button" class="btn-ghost" id="onboardingImportBtn">Import from HTML</button>'+
+        '<button type="button" class="btn-ghost" id="onboardingImportBtn">Import saved posts</button>'+
       '</div>'+
     '</div>';
   }
@@ -1045,7 +1114,8 @@
     var chips = state.topics.map(function(t){
       var selected = selectedIds.indexOf(t.id)!==-1;
       var c = topicColor(t);
-      return '<button type="button" class="topic-pick-chip'+(selected?' selected':'')+'" data-topic-id="'+t.id+'" style="--chip-color:'+c.base+'">'+escapeHtml(t.name)+'</button>';
+      var icon = t.isCreator ? '<span class="chip-creator-icon">'+ICONS.personIcon+'</span>' : '';
+      return '<button type="button" class="topic-pick-chip'+(selected?' selected':'')+'" data-topic-id="'+t.id+'" style="--chip-color:'+c.base+'">'+icon+escapeHtml(t.name)+'</button>';
     }).join('');
     wrap.innerHTML = '<div class="topic-pick-list">'+chips+
       '<button type="button" class="topic-pick-chip add-new" id="inlineAddTopicBtn">+ New</button></div>'+
@@ -1120,7 +1190,9 @@
       return;
     }
     list.innerHTML = state.topics.map(function(t){
+      var creatorBadge = t.isCreator ? '<span class="chip-creator-icon" style="color:'+topicColor(t).base+'" title="Creator">'+ICONS.personIcon+'</span>' : '';
       return '<div class="topic-manage-row"><span class="chip-dot" style="background:'+topicColor(t).base+'"></span>'+
+        creatorBadge+
         '<input type="text" class="topic-rename-input" value="'+escapeHtml(t.name)+'" maxlength="30" data-id="'+t.id+'">'+
         '<span class="topic-manage-count">'+itemCountForTopic(t.id)+'</span>'+
         '<button type="button" class="icon-btn sm" data-delete-topic="'+t.id+'" aria-label="Delete topic">'+ICONS.trash+'</button></div>';
@@ -1766,6 +1838,7 @@
   });
 
   $('#addItemBtn').addEventListener('click', function(){ openItemModal(); });
+  $('#guideBtn').addEventListener('click', function(){ showModal($('#guideModalBackdrop')); });
   $('#themeToggle').addEventListener('click', toggleTheme);
 
   $('#sortMenuBtn').addEventListener('click', function(e){
@@ -1985,7 +2058,8 @@
     if(!actionBtn) return;
     var act = actionBtn.getAttribute('data-action');
     $('#overflowMenu').hidden = true;
-    if(act==='manage-topics') openTopicManageModal();
+    if(act==='guide') showModal($('#guideModalBackdrop'));
+    else if(act==='manage-topics') openTopicManageModal();
     else if(act==='export') exportData();
     else if(act==='import') $('#importFileInput').click();
     else if(act==='import-html') $('#htmlImportFileInput').click();
@@ -2003,7 +2077,12 @@
   function refreshSyncUI(){
     var signedIn = !!(window.Sync && window.Sync.user);
     var btn = $('#syncMenuBtn');
-    if(btn) btn.textContent = signedIn ? 'Manage sync' : 'Sync across devices';
+    if(btn){
+      var labelEl = btn.querySelector('.menu-item-label');
+      var descEl = btn.querySelector('.menu-item-desc');
+      if(labelEl) labelEl.textContent = signedIn ? 'Manage sync' : 'Sync across devices';
+      if(descEl) descEl.textContent = signedIn ? 'View or turn off your sync code' : 'Use the same stash on your phone and laptop';
+    }
     $('#privacyNote').textContent = signedIn
       ? '🔄 Syncing with your other devices.'
       : '🔒 Everything stays on this device unless you turn on sync.';
@@ -2046,7 +2125,7 @@
       try{ candidates = parseJsonForImport(parsed); }
       catch(err){ showToast('Could not read that JSON file'); return; }
       if(candidates.length===0){ showToast('No importable links found in that JSON'); return; }
-      openHtmlImportPreview(candidates, 'Import from JSON');
+      openHtmlImportPreview(candidates, 'Restore from backup');
     };
     reader.onerror = function(){ showToast('Could not read that file'); };
     reader.readAsText(file);
@@ -2064,7 +2143,7 @@
         try{ candidates = parseHtmlForImport(reader.result); }
         catch(err){ showToast('Could not read that HTML file'); return; }
         if(candidates.length===0){ showToast('No links found in that file'); return; }
-        openHtmlImportPreview(candidates, 'Import from HTML');
+        openHtmlImportPreview(candidates, 'Import saved posts');
       }, 30);
     };
     reader.onerror = function(){ showToast('Could not read that HTML file'); };

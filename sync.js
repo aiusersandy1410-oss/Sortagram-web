@@ -100,7 +100,8 @@ const Sync = (function () {
         <h3 style="margin:0 0 10px;font-size:1.05rem;">Sync across devices</h3>
         <p style="font-size:.85rem;line-height:1.5;color:var(--ink-soft,#6B6B76);margin:0 0 14px;">
           No account or email needed. Start a sync code here, then enter that
-          same code on your other device to link it.
+          same code on your other device to link it. That's simpler and more
+          private than a login — nobody but you ever sees your data.
         </p>
         <button type="button" id="syncStartBtn" style="width:100%;padding:10px;border:none;border-radius:999px;background:var(--accent,#FF5A4E);color:#fff;font-weight:600;font-size:.9rem;margin-bottom:8px;">Start syncing (new code)</button>
         <button type="button" id="syncJoinToggleBtn" style="width:100%;padding:10px;border:1px solid var(--border,#E6E6EC);border-radius:999px;background:transparent;color:inherit;font-size:.9rem;margin-bottom:8px;">I already have a code</button>

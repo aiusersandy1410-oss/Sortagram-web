@@ -1,6 +1,6 @@
 # Sortagram
 
-A free, private, local-first tool for organizing saved Instagram/TikTok/etc.
+A free, private, local-first tool for organizing saved social media content. 
 reels and posts by topic and creator. No account required to use it.
 
 **Live at: https://sortagram.vercel.app**

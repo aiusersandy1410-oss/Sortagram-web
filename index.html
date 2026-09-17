@@ -456,6 +456,9 @@
           <button type="button" data-sort="alpha_desc">Z–A</button>
           <button type="button" data-sort="platform">By platform</button>
           <button type="button" data-sort="updated">Recently edited</button>
+          <button type="button" data-sort="topic_group">By topic</button>
+          <button type="button" data-sort="topic_count">Most tagged first</button>
+          <button type="button" data-sort="notes_length">Notes first</button>
           <div class="sort-menu-divider"></div>
           <label class="sort-menu-toggle">
             <input type="checkbox" id="favoritesFirstToggle">
@@ -812,6 +815,13 @@
     var n=0; for(var i=0;i<state.items.length;i++){ if(state.items[i].topicIds.indexOf(topicId)!==-1) n++; }
     return n;
   }
+  // For "group by topic" sorting. Untagged items sort to the very end
+  // regardless of locale, via a sentinel that's higher than any real name.
+  function primaryTopicName(item){
+    if(!item.topicIds || item.topicIds.length===0) return '\uffff';
+    var t = getTopicById(item.topicIds[0]);
+    return t ? t.name : '\uffff';
+  }
   function createTopic(name, isCreator){
     var topic = {id:uid('topic'), name:name, colorIndex:state.topics.length, isCreator:!!isCreator, updatedAt:Date.now()};
     state.topics.push(topic);
@@ -862,6 +872,15 @@
           var pa = (PLATFORMS[a.platform]||PLATFORMS.other).label;
           var pb = (PLATFORMS[b.platform]||PLATFORMS.other).label;
           return pa.localeCompare(pb) || (b.createdAt - a.createdAt);
+        case 'topic_group':
+          return primaryTopicName(a).localeCompare(primaryTopicName(b)) || (b.createdAt - a.createdAt);
+        case 'topic_count':
+          return (b.topicIds.length - a.topicIds.length) || (b.createdAt - a.createdAt);
+        case 'notes_length':
+          var aHas = !!(a.notes && a.notes.trim()), bHas = !!(b.notes && b.notes.trim());
+          if(aHas !== bHas) return aHas ? -1 : 1;
+          if(aHas && bHas) return b.notes.length - a.notes.length;
+          return b.createdAt - a.createdAt;
         default: return b.createdAt - a.createdAt; // newest
       }
     });
@@ -1047,7 +1066,7 @@
   function renderToolbar(){
     var row = $('#toolbarRow');
     row.hidden = state.items.length===0;
-    var sortLabels = {newest:'Newest', oldest:'Oldest', alpha:'A\u2013Z', alpha_desc:'Z\u2013A', platform:'Platform', updated:'Recently edited'};
+    var sortLabels = {newest:'Newest', oldest:'Oldest', alpha:'A\u2013Z', alpha_desc:'Z\u2013A', platform:'Platform', updated:'Recently edited', topic_group:'By topic', topic_count:'Most tagged', notes_length:'Notes first'};
     $('#sortMenuBtn').innerHTML = ICONS.sortIcon+' '+(sortLabels[state.sortBy]||'Newest');
     $all('[data-sort]', $('#sortMenu')).forEach(function(b){
       b.classList.toggle('active', b.getAttribute('data-sort')===state.sortBy);

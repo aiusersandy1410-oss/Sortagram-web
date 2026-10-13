@@ -4,6 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Sortagram — organize your saved reels & posts</title>
+<script>
+/* Runs before first paint: applies the saved theme (no light-to-dark flash) and, for people
+   who use sync, wakes the free-tier backend in the background so it's ready by the time it's needed. */
+(function(){
+  try{
+    var t = localStorage.getItem('sortagram_theme');
+    if(!t){
+      var raw = localStorage.getItem('stashboard_data_v1');
+      if(raw){ var p = JSON.parse(raw); if(p && (p.theme==='dark'||p.theme==='light')) t = p.theme; }
+    }
+    if(t!=='dark' && t!=='light') t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+    if(localStorage.getItem('stash_authToken')){
+      var base = 'https://stashboard-sync-6uag.onrender.com';
+      var l = document.createElement('link'); l.rel='preconnect'; l.href=base; document.head.appendChild(l);
+      setTimeout(function(){ fetch(base+'/health').catch(function(){}); }, 1500);
+    }
+  }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
+})();
+</script>
 <meta name="description" content="Sortagram is a free, private tool for organizing your saved Instagram reels, TikToks, and posts by topic and creator. No accounts, no tracking — everything runs locally in your browser.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://sortagram.vercel.app/">
@@ -42,6 +62,7 @@
     --shadow-sm:0 1px 3px rgba(0,0,0,.4);
     --shadow-md:0 8px 24px rgba(0,0,0,.45);
     --shadow-lg:0 24px 60px rgba(0,0,0,.6);
+    color-scheme:dark;
   }
   *,*::before,*::after{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -64,6 +85,7 @@
     background:var(--accent-soft); color:var(--ink); font-size:.82rem;
     padding:10px 16px; border-bottom:1px solid var(--border);
   }
+  .banner[hidden]{display:none;}
   .banner svg{flex:none; color:var(--accent);}
   .banner button{background:none; border:none; color:var(--ink-soft); padding:2px; flex:none; border-radius:6px;}
   .banner button:hover{color:var(--ink);}
@@ -106,6 +128,7 @@
   }
   .btn-primary:hover{filter:brightness(1.05); box-shadow:var(--shadow-md); transform:translateY(-1px);}
   .btn-primary:active{transform:translateY(0); filter:brightness(.97);}
+  .btn-primary:disabled{opacity:.5; cursor:default; transform:none; box-shadow:none;}
   .btn-primary.sm{padding:7px 14px; font-size:.82rem;}
   .btn-ghost{
     background:var(--surface-2); border:1px solid var(--border); color:var(--ink); border-radius:var(--radius-pill);
@@ -122,7 +145,9 @@
   .overflow-menu{
     position:absolute; top:46px; right:0; background:var(--surface); border:1px solid var(--border);
     border-radius:var(--radius-md); box-shadow:var(--shadow-lg); padding:6px; width:250px; z-index:30;
+    max-height:calc(100vh - 80px); overflow-y:auto;
   }
+  .overflow-menu[hidden]{display:none;}
   .overflow-menu button{
     display:flex; flex-direction:column; gap:1px; width:100%; text-align:left; background:none; border:none; color:var(--ink);
     padding:8px 10px; border-radius:var(--radius-sm); font-size:.88rem;
@@ -152,11 +177,13 @@
   .toolbar-row{
     max-width:1180px; margin:0 auto; padding:8px 20px 0; display:flex; justify-content:flex-end; gap:8px;
   }
+  .toolbar-row[hidden]{display:none;}
   .toolbar-btn{
     display:inline-flex; align-items:center; gap:5px; background:var(--surface-2); border:1px solid var(--border);
     color:var(--ink); border-radius:var(--radius-pill); padding:5px 12px; font-size:.78rem; font-weight:600;
     transition:background var(--dur) ease, color var(--dur) ease, border-color var(--dur) ease;
   }
+  .toolbar-btn[hidden]{display:none;}
   .toolbar-btn:hover{background:var(--accent-soft); color:var(--ink); border-color:var(--accent);}
   .toolbar-btn.active{background:var(--accent-soft); border-color:var(--accent); color:var(--ink);}
   .sort-control{position:relative;}
@@ -164,12 +191,13 @@
     position:absolute; top:34px; right:0; background:var(--surface); border:1px solid var(--border);
     border-radius:var(--radius-md); box-shadow:var(--shadow-lg); padding:6px; width:150px; z-index:30;
   }
+  .sort-menu[hidden]{display:none;}
   .sort-menu button{
     display:block; width:100%; text-align:left; background:none; border:none; color:var(--ink);
     padding:8px 10px; border-radius:var(--radius-sm); font-size:.85rem;
   }
   .sort-menu button:hover{background:var(--surface-2);}
-  .sort-menu button.active{color:var(--accent); font-weight:600;}
+  .sort-menu button.active{color:var(--accent-fill); font-weight:600;}
   .sort-menu-divider{height:1px; background:var(--border); margin:6px 4px;}
   .sort-menu-toggle{
     display:flex; align-items:center; gap:8px; padding:8px 10px; font-size:.85rem; color:var(--ink);
@@ -179,7 +207,7 @@
 
   /* ---------- bulk selection ---------- */
   .bulk-bar{
-    position:fixed; left:12px; right:12px; bottom:16px; z-index:45; background:var(--ink); color:var(--paper);
+    position:fixed; left:12px; right:12px; bottom:calc(16px + env(safe-area-inset-bottom)); z-index:45; background:var(--ink); color:var(--paper);
     border-radius:var(--radius-lg); padding:12px 14px; display:flex; align-items:center; justify-content:space-between;
     gap:10px; box-shadow:var(--shadow-lg); max-width:600px; margin:0 auto;
   }
@@ -187,7 +215,7 @@
   .bulk-bar[hidden]{display:none;}
   .bulk-bar-actions{display:flex; align-items:center; gap:8px; flex:none;}
   .bulk-bar .btn-ghost.sm, .bulk-bar .btn-danger.sm{padding:6px 12px; font-size:.8rem;}
-  .bulk-bar .btn-ghost.sm{border-color:rgba(255,255,255,.3); color:inherit;}
+  .bulk-bar .btn-ghost.sm{border-color:rgba(255,255,255,.3); color:inherit; background:transparent;}
   .bulk-bar .link-btn{color:inherit; opacity:.75; text-decoration:underline; font-size:.8rem;}
   .card-select-check{
     position:absolute; top:10px; right:10px; width:24px; height:24px; border-radius:50%;
@@ -234,9 +262,12 @@
   /* ---------- main / grid ---------- */
   .main{max-width:1180px; margin:0 auto; padding:16px 20px 40px;}
   .grid{columns:1; column-gap:16px;}
+  .grid[hidden]{display:none;}
   @media(min-width:560px){.grid{columns:2;}}
   @media(min-width:860px){.grid{columns:3;}}
   @media(min-width:1180px){.grid{columns:4;}}
+  .load-more{display:flex; justify-content:center; padding:8px 0 24px;}
+  .load-more[hidden]{display:none;}
 
   .card{
     break-inside:avoid; margin-bottom:16px; background:var(--surface); border:1px solid var(--border);
@@ -254,19 +285,20 @@
     box-shadow:0 2px 6px rgba(0,0,0,.25); letter-spacing:.02em;
   }
   .card-body{padding:12px 14px 14px;}
-  .card-title{font-size:.98rem; line-height:1.35; margin-bottom:6px; font-weight:600;}
+  .card-title{font-size:.98rem; line-height:1.35; margin-bottom:6px; font-weight:600; overflow-wrap:anywhere;}
   .card-topics{display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px;}
   .tag{
     font-size:.7rem; font-weight:600; color:var(--tag-color); background:color-mix(in srgb, var(--tag-color) 14%, transparent);
     padding:3px 9px; border-radius:var(--radius-pill);
   }
-  .card-notes{font-size:.8rem; color:var(--ink-soft); line-height:1.4; margin-bottom:8px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .card-notes{font-size:.8rem; color:var(--ink-soft); line-height:1.4; margin-bottom:8px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere;}
   .card-footer{display:flex; align-items:center; justify-content:space-between; margin-top:4px;}
   .card-date{font-size:.7rem; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.04em;}
   .card-actions{display:flex; gap:2px;}
 
   /* ---------- empty states ---------- */
   .empty-state{display:flex; align-items:center; justify-content:center; padding:40px 16px;}
+  .empty-state[hidden]{display:none;}
   .onboarding{max-width:420px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;}
   .onboarding svg{margin-bottom:6px; animation:float 5s ease-in-out infinite;}
   .onboarding h2{font-size:1.3rem;}
@@ -296,6 +328,7 @@
   .guide-section h3{font-family:var(--font-body); font-size:.85rem; font-weight:700; color:var(--accent-fill); text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px;}
   .guide-section p{font-size:.92rem; line-height:1.5; color:var(--ink); margin:0;}
   .modal-sm{max-width:380px;}
+  #confirmModalBackdrop{z-index:55;}
   @media(min-width:640px){
     .modal-backdrop{align-items:center;}
     .modal{border-radius:var(--radius-lg); transform:translateY(8px) scale(.98);}
@@ -309,7 +342,7 @@
   #itemForm input:focus,#itemForm select:focus,#itemForm textarea:focus{border-color:var(--accent); outline:none;}
   #itemForm textarea{resize:vertical;}
   .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:6px;}
-  .more-details-toggle{background:none; border:none; color:var(--accent); font-weight:600; font-size:.85rem; padding:4px 0 14px; text-align:left;}
+  .more-details-toggle{background:none; border:none; color:var(--accent-fill); font-weight:600; font-size:.85rem; padding:4px 0 14px; text-align:left;}
   .more-details{overflow:hidden; max-height:0; opacity:0; transition:max-height .25s ease, opacity .2s ease;}
   .more-details.open{max-height:400px; opacity:1;}
   .btn-primary:active,.btn-ghost:active,.btn-danger:active,.icon-btn:active,.chip:active{transform:scale(.96);}
@@ -323,12 +356,13 @@
   .topic-pick-chip.selected .chip-creator-icon{color:#fff; opacity:1;}
   .topic-pick-chip.add-new{border-style:dashed;}
   .inline-new-topic{display:flex; gap:8px; margin-top:10px;}
+  .inline-new-topic[hidden]{display:none;}
   .inline-new-topic input{flex:1; padding:8px 12px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); color:var(--ink);}
 
   .topic-manage-list{display:flex; flex-direction:column; gap:6px; margin-bottom:16px; max-height:280px; overflow-y:auto;}
   .topic-manage-row{display:flex; align-items:center; gap:10px; padding:6px; border-radius:var(--radius-sm);}
   .topic-manage-row .chip-dot{width:10px; height:10px;}
-  .topic-rename-input{flex:1; border:1px solid transparent; background:transparent; color:var(--ink); padding:6px 8px; border-radius:var(--radius-sm); font-size:.88rem;}
+  .topic-rename-input{flex:1; min-width:0; border:1px solid transparent; background:transparent; color:var(--ink); padding:6px 8px; border-radius:var(--radius-sm); font-size:.88rem;}
   .topic-rename-input:hover,.topic-rename-input:focus{background:var(--surface-2); border-color:var(--border); outline:none;}
   .topic-manage-count{font-size:.72rem; color:var(--ink-faint); flex:none;}
   .new-topic-form{display:flex; gap:8px; padding-top:10px; border-top:1px solid var(--border);}
@@ -336,10 +370,11 @@
   .hint{color:var(--ink-soft); font-size:.85rem; font-weight:400;}
 
   /* ---------- toast ---------- */
-  .toast-container{position:fixed; left:0; right:0; bottom:20px; display:flex; flex-direction:column; align-items:center; gap:8px; z-index:60; pointer-events:none;}
+  .toast-container{position:fixed; left:0; right:0; bottom:calc(20px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; align-items:center; gap:8px; z-index:10000; pointer-events:none;}
   .toast{
     background:var(--ink); color:var(--paper); padding:10px 18px; border-radius:var(--radius-pill);
     font-size:.85rem; box-shadow:var(--shadow-lg); opacity:0; transform:translateY(8px); transition:opacity var(--dur) ease, transform var(--dur) ease;
+    max-width:90vw; text-align:center;
   }
   [data-theme="dark"] .toast{background:var(--surface-2); color:var(--ink); border:1px solid var(--border);}
   .toast.show{opacity:1; transform:translateY(0);}
@@ -365,16 +400,16 @@
   .import-toggle-row input{accent-color:var(--accent); width:16px; height:16px; flex:none;}
   .import-row-thumb{flex:none; width:38px; height:38px; border-radius:8px; overflow:hidden; background:var(--surface-2); display:flex; align-items:center; justify-content:center;}
   .import-row-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
-  .import-row-creator{color:var(--accent); font-weight:600;}
+  .import-row-creator{color:var(--accent-fill); font-weight:600;}
 
   @media(prefers-reduced-motion:reduce){
     *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
   }
 </style>
 <script>window.STASHBOARD_API_BASE = 'https://stashboard-sync-6uag.onrender.com';</script>
-<script src="sync.js"></script>
+<script src="sync.js" defer></script>
 </head>
-<body data-theme="light">
+<body>
 
   <div id="storageBanner" class="banner" hidden></div>
 
@@ -396,7 +431,7 @@
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 1.7-2.4 3.4"/><path d="M12 17h.01"/></svg>
         </button>
         <button id="themeToggle" class="icon-btn" type="button" aria-label="Toggle dark mode"></button>
-        <button id="menuToggle" class="icon-btn" type="button" aria-label="More options">
+        <button id="menuToggle" class="icon-btn" type="button" aria-label="More options" aria-haspopup="true">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
         </button>
         <button id="addItemBtn" class="btn-primary" type="button">
@@ -456,9 +491,6 @@
           <button type="button" data-sort="alpha_desc">Z–A</button>
           <button type="button" data-sort="platform">By platform</button>
           <button type="button" data-sort="updated">Recently edited</button>
-          <button type="button" data-sort="topic_group">By topic</button>
-          <button type="button" data-sort="topic_count">Most tagged first</button>
-          <button type="button" data-sort="notes_length">Notes first</button>
           <div class="sort-menu-divider"></div>
           <label class="sort-menu-toggle">
             <input type="checkbox" id="favoritesFirstToggle">
@@ -473,6 +505,9 @@
 
   <main class="main">
     <div class="grid" id="grid"></div>
+    <div class="load-more" id="loadMore" hidden>
+      <button type="button" class="btn-ghost" id="loadMoreBtn">Show more</button>
+    </div>
     <div class="empty-state" id="emptyState" hidden></div>
   </main>
 
@@ -620,7 +655,7 @@
 
   <input type="file" id="importFileInput" accept="application/json" hidden>
   <input type="file" id="htmlImportFileInput" accept=".html,.htm,text/html" hidden>
-  <div class="toast-container" id="toastContainer"></div>
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
 <script>
 (function(){
@@ -648,6 +683,8 @@
   };
   var STARTER_TOPICS = ['Recipes','Fitness','Fashion','Travel','Home & DIY','Quotes','Beauty','Money'];
   var STORAGE_KEY = 'stashboard_data_v1';
+  var THEME_KEY = 'sortagram_theme';
+  var PAGE_SIZE = 36;
 
   var ICONS = {
     edit:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
@@ -682,12 +719,10 @@
     var d = new Date(ts);
     return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
   }
-  // Normalizes a URL for duplicate comparison only (never for display or
-  // saving). Lowercases scheme+host and strips a trailing slash from the
-  // path, but deliberately leaves the path/query untouched — many
-  // platforms (e.g. YouTube video IDs) use case-sensitive paths, so
-  // lowercasing those would cause false-positive "duplicate" matches
-  // between two genuinely different links.
+  // Only http(s) links may be opened or shown as images; blocks javascript: / data: URLs from
+  // hand-typed, imported or synced records.
+  function safeUrl(u){ return /^https?:\/\//i.test(String(u||'').trim()) ? String(u).trim() : ''; }
+  // Normalizes a URL for duplicate comparison only (never for display or saving).
   function normalizeUrlForDedup(url){
     if(!url) return '';
     try{
@@ -708,6 +743,7 @@
     var p = PLATFORMS[platform] || PLATFORMS.other;
     return p.video ? ICONS.playGlyph : ICONS.imageGlyph;
   }
+  function currentTheme(){ return document.documentElement.getAttribute('data-theme') || 'light'; }
 
   /* ---------------- storage ---------------- */
   var storageAvailable = true;
@@ -727,19 +763,17 @@
     memoryFallback = json;
   }
 
-  // Fills in fields that didn't exist in older data — old localStorage,
-  // an imported full backup from before a given feature existed, etc.
-  // Every path that loads topics/items (initial load, backup restore)
-  // must run data through this, or older records silently misbehave
-  // instead of getting sensible defaults.
+  // Fills in fields that didn't exist in older data (old localStorage, older backups).
+  // Every path that loads topics/items must run data through this.
   function migrateTopicsAndItems(topics, items){
     topics.forEach(function(t){
-      if(t.isCreator===undefined) t.isCreator = t.name.charAt(0)==='@';
-      if(t.colorIndex===undefined) t.colorIndex = 0;
+      if(t.isCreator===undefined || t.isCreator===null) t.isCreator = String(t.name||'').charAt(0)==='@';
+      if(t.colorIndex===undefined || t.colorIndex===null) t.colorIndex = 0;
     });
     items.forEach(function(i){
       if(i.favorite===undefined) i.favorite = false;
       if(!Array.isArray(i.topicIds)) i.topicIds = [];
+      if(!i.createdAt) i.createdAt = Date.now();
     });
     return {topics:topics, items:items};
   }
@@ -772,7 +806,7 @@
     if(!banner || banner.dataset.shown) return;
     banner.dataset.shown = '1';
     banner.hidden = false;
-    banner.innerHTML = '<span style="display:flex;align-items:center;gap:8px;">'+ICONS.info+' This preview can\'t save permanently. Download the file below and open it in your browser to keep your stash for good.</span>'+
+    banner.innerHTML = '<span style="display:flex;align-items:center;gap:8px;">'+ICONS.info+' Your browser is blocking storage, so your stash will be lost when you close this tab. Try opening this page in Chrome or Safari, or use "Save a backup file" from the menu.</span>'+
       '<button type="button" id="dismissBanner" aria-label="Dismiss">'+ICONS.close+'</button>';
     var dismiss = $('#dismissBanner');
     if(dismiss) dismiss.addEventListener('click', function(){ banner.hidden = true; });
@@ -786,6 +820,9 @@
   var confirmCallback = null;
   var selectMode = false;
   var selectedIds = {};
+  var renderLimit = PAGE_SIZE;
+  var renderedCount = 0;
+  var lastViewSig = '';
 
   /* ---------------- theme ---------------- */
   function getEffectiveTheme(){
@@ -794,7 +831,8 @@
   }
   function applyTheme(){
     var t = getEffectiveTheme();
-    document.body.setAttribute('data-theme', t);
+    document.documentElement.setAttribute('data-theme', t);
+    try{ localStorage.setItem(THEME_KEY, t); }catch(e){}
     var btn = $('#themeToggle');
     if(btn) btn.innerHTML = t === 'dark' ? ICONS.sun : ICONS.moon;
   }
@@ -806,7 +844,7 @@
   }
 
   /* ---------------- topic helpers ---------------- */
-  function topicColor(topic){ return TOPIC_COLORS[topic.colorIndex % TOPIC_COLORS.length]; }
+  function topicColor(topic){ return TOPIC_COLORS[(topic.colorIndex||0) % TOPIC_COLORS.length]; }
   function getTopicById(id){
     for(var i=0;i<state.topics.length;i++){ if(state.topics[i].id===id) return state.topics[i]; }
     return null;
@@ -815,26 +853,19 @@
     var n=0; for(var i=0;i<state.items.length;i++){ if(state.items[i].topicIds.indexOf(topicId)!==-1) n++; }
     return n;
   }
-  // For "group by topic" sorting. Untagged items sort to the very end
-  // regardless of locale, via a sentinel that's higher than any real name.
-  function primaryTopicName(item){
-    if(!item.topicIds || item.topicIds.length===0) return '\uffff';
-    var t = getTopicById(item.topicIds[0]);
-    return t ? t.name : '\uffff';
-  }
-  function createTopic(name, isCreator){
+  // skipPersist/skipSync let bulk operations (imports) save and sync once at the end.
+  function createTopic(name, isCreator, skipPersist){
     var topic = {id:uid('topic'), name:name, colorIndex:state.topics.length, isCreator:!!isCreator, updatedAt:Date.now()};
     state.topics.push(topic);
-    persist();
-    queueSync('topics', topic);
+    if(!skipPersist){ persist(); queueSync('topics', topic); }
     return topic;
   }
 
-  // Queues a change (or a deletion tombstone) for the sync client, if signed in.
-  // Safe to call even when Sync isn't loaded or the user is offline/anonymous.
-  function queueSync(kind, record){
-    if(window.Sync && window.Sync.user) window.Sync.queueChange(kind, record);
-  }
+  // Queue a change (or deletion tombstone) for sync. Uses the stored token, not the live
+  // connection state, so edits made while offline or while the server is waking up still sync later.
+  function syncOn(){ return !!(window.Sync && window.Sync.hasToken); }
+  function queueSync(kind, record){ if(syncOn()) window.Sync.queueChange(kind, record); }
+  function queueSyncMany(kind, records){ if(syncOn() && records.length) window.Sync.queueChanges(kind, records); }
   function tombstoneFor(record){
     var t = Date.now();
     var copy = {}; for(var k in record){ copy[k]=record[k]; }
@@ -853,15 +884,14 @@
       items = items.filter(function(it){
         var topicNames = it.topicIds.map(function(id){ var t=getTopicById(id); return t?t.name:''; }).join(' ').toLowerCase();
         var platLabel = (PLATFORMS[it.platform]||PLATFORMS.other).label.toLowerCase();
-        return it.title.toLowerCase().indexOf(q)!==-1 ||
+        return (it.title||'').toLowerCase().indexOf(q)!==-1 ||
                (it.notes||'').toLowerCase().indexOf(q)!==-1 ||
+               (it.url||'').toLowerCase().indexOf(q)!==-1 ||
                topicNames.indexOf(q)!==-1 ||
                platLabel.indexOf(q)!==-1;
       });
     }
     items.sort(function(a,b){
-      // "Favorites first" is an independent toggle, not baked into a sort
-      // mode, so it composes cleanly with whichever sort is active below.
       if(state.favoritesFirst && !!b.favorite !== !!a.favorite) return (b.favorite?1:0) - (a.favorite?1:0);
       switch(state.sortBy){
         case 'oldest': return a.createdAt - b.createdAt;
@@ -872,16 +902,7 @@
           var pa = (PLATFORMS[a.platform]||PLATFORMS.other).label;
           var pb = (PLATFORMS[b.platform]||PLATFORMS.other).label;
           return pa.localeCompare(pb) || (b.createdAt - a.createdAt);
-        case 'topic_group':
-          return primaryTopicName(a).localeCompare(primaryTopicName(b)) || (b.createdAt - a.createdAt);
-        case 'topic_count':
-          return (b.topicIds.length - a.topicIds.length) || (b.createdAt - a.createdAt);
-        case 'notes_length':
-          var aHas = !!(a.notes && a.notes.trim()), bHas = !!(b.notes && b.notes.trim());
-          if(aHas !== bHas) return aHas ? -1 : 1;
-          if(aHas && bHas) return b.notes.length - a.notes.length;
-          return b.createdAt - a.createdAt;
-        default: return b.createdAt - a.createdAt; // newest
+        default: return b.createdAt - a.createdAt;
       }
     });
     return items;
@@ -891,11 +912,11 @@
   function chipHTML(id, name, count, active, color, isCreator){
     var style = '';
     if(color){
-      var tint = document.body.getAttribute('data-theme')==='dark' ? color.tintDark : color.tint;
+      var tint = currentTheme()==='dark' ? color.tintDark : color.tint;
       style = 'style="--chip-color:'+color.base+';--chip-tint:'+tint+'"';
     }
     var creatorIcon = isCreator ? '<span class="chip-creator-icon" title="Creator">'+ICONS.personIcon+'</span>' : '';
-    return '<button type="button" class="chip'+(active?' chip-active':'')+'" data-topic-id="'+id+'" '+style+'>'+
+    return '<button type="button" class="chip'+(active?' chip-active':'')+'" data-topic-id="'+escapeHtml(id)+'" '+style+'>'+
       (color ? '<span class="chip-dot"></span>' : '') + creatorIcon + escapeHtml(name) +
       '<span class="chip-count">'+count+'</span></button>';
   }
@@ -922,23 +943,28 @@
     var strip = $('#topicStrip');
     var shown = visibleTopics();
     if(activeTopicId!=='all' && !shown.some(function(t){ return t.id===activeTopicId; })) activeTopicId = 'all';
-    var total = state.items.length;
-    var html = chipHTML('all','All', total, activeTopicId==='all', null);
+    // Count every topic in one pass instead of one pass per chip.
+    var counts = {};
+    state.items.forEach(function(it){ it.topicIds.forEach(function(id){ counts[id] = (counts[id]||0)+1; }); });
+    var html = chipHTML('all','All', state.items.length, activeTopicId==='all', null);
     shown.forEach(function(t){
-      html += chipHTML(t.id, t.name, itemCountForTopic(t.id), activeTopicId===t.id, topicColor(t), t.isCreator);
+      html += chipHTML(t.id, t.name, counts[t.id]||0, activeTopicId===t.id, topicColor(t), t.isCreator);
     });
     html += '<button type="button" class="chip chip-add" id="manageTopicsChip">+ Topics</button>';
     strip.innerHTML = html;
-    $all('.chip[data-topic-id]', strip).forEach(function(chip){
-      chip.addEventListener('click', function(){
-        activeTopicId = chip.getAttribute('data-topic-id');
-        renderTopicStrip();
-        renderGrid();
-      });
-    });
-    var manageBtn = $('#manageTopicsChip');
-    if(manageBtn) manageBtn.addEventListener('click', openTopicManageModal);
   }
+
+  // One delegated listener for the whole strip (instead of re-binding every chip on every render).
+  $('#topicStrip').addEventListener('click', function(e){
+    var chip = e.target.closest('.chip');
+    if(!chip) return;
+    if(chip.id==='manageTopicsChip'){ openTopicManageModal(); return; }
+    var id = chip.getAttribute('data-topic-id');
+    if(!id) return;
+    activeTopicId = id;
+    renderTopicStrip();
+    renderGrid();
+  });
 
   $('#viewModeRow').addEventListener('click', function(e){
     var btn = e.target.closest('.mode-btn');
@@ -949,14 +975,16 @@
     renderGrid();
   });
 
-
   /* ---------------- render: grid ---------------- */
-  function cardHTML(item){
+  function cardHTML(item, idx){
     var plat = PLATFORMS[item.platform] || PLATFORMS.other;
     var topics = item.topicIds.map(getTopicById).filter(Boolean);
     var primaryColor = topics.length ? topicColor(topics[0]).base : '#C7C7D1';
-    var thumbInner = item.thumb
-      ? '<img src="'+escapeHtml(item.thumb)+'" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'+
+    var thumb = safeUrl(item.thumb);
+    // The first few images load eagerly (they're what the person sees first); the rest are lazy.
+    var imgAttrs = idx<2 ? 'fetchpriority="high"' : 'loading="lazy"';
+    var thumbInner = thumb
+      ? '<img src="'+escapeHtml(thumb)+'" alt="" '+imgAttrs+' decoding="async" referrerpolicy="no-referrer" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'+
         '<div class="thumb-fallback" style="display:none;background:'+gradientFor(primaryColor)+'">'+glyphFor(item.platform)+'</div>'
       : '<div class="thumb-fallback" style="background:'+gradientFor(primaryColor)+'">'+glyphFor(item.platform)+'</div>';
 
@@ -967,13 +995,14 @@
       : '';
 
     var notesHtml = item.notes ? '<p class="card-notes">'+escapeHtml(item.notes)+'</p>' : '';
-    var linkHtml = item.url ? '<a class="icon-btn sm" href="'+escapeHtml(item.url)+'" target="_blank" rel="noopener noreferrer" aria-label="Open original">'+ICONS.link+'</a>' : '';
+    var href = safeUrl(item.url);
+    var linkHtml = href ? '<a class="icon-btn sm" href="'+escapeHtml(href)+'" target="_blank" rel="noopener noreferrer" aria-label="Open original">'+ICONS.link+'</a>' : '';
     var isSelected = !!selectedIds[item.id];
     var selectHtml = selectMode
-      ? '<span class="card-select-check'+(isSelected?' checked':'')+'" data-action="toggle-select" data-id="'+item.id+'">'+(isSelected?ICONS.checkCircle:'')+'</span>'
-      : '<button type="button" class="favorite-btn'+(item.favorite?' active':'')+'" data-action="favorite" data-id="'+item.id+'" aria-label="'+(item.favorite?'Remove from favorites':'Add to favorites')+'">'+(item.favorite?ICONS.starFilled:ICONS.starOutline)+'</button>';
+      ? '<span class="card-select-check'+(isSelected?' checked':'')+'" data-action="toggle-select" data-id="'+escapeHtml(item.id)+'">'+(isSelected?ICONS.checkCircle:'')+'</span>'
+      : '<button type="button" class="favorite-btn'+(item.favorite?' active':'')+'" data-action="favorite" data-id="'+escapeHtml(item.id)+'" aria-label="'+(item.favorite?'Remove from favorites':'Add to favorites')+'">'+(item.favorite?ICONS.starFilled:ICONS.starOutline)+'</button>';
 
-    return '<article class="card'+(selectMode?' selectable':'')+(isSelected?' selected':'')+'" style="--card-accent:'+primaryColor+'" data-action="'+(selectMode?'toggle-select':'')+'" data-id="'+(selectMode?item.id:'')+'">'+
+    return '<article class="card'+(selectMode?' selectable':'')+(isSelected?' selected':'')+'" style="--card-accent:'+primaryColor+'" data-action="'+(selectMode?'toggle-select':'')+'" data-id="'+(selectMode?escapeHtml(item.id):'')+'">'+
       '<div class="card-thumb">'+thumbInner+'<span class="platform-badge" style="background:'+plat.bg+'">'+plat.mono+'</span>'+selectHtml+'</div>'+
       '<div class="card-body">'+
         '<h3 class="card-title">'+escapeHtml(item.title)+'</h3>'+
@@ -981,8 +1010,8 @@
         '<div class="card-footer">'+
           '<span class="card-date">'+formatDate(item.createdAt)+'</span>'+
           '<div class="card-actions">'+linkHtml+
-            '<button type="button" class="icon-btn sm" data-action="edit" data-id="'+item.id+'" aria-label="Edit">'+ICONS.edit+'</button>'+
-            '<button type="button" class="icon-btn sm" data-action="delete" data-id="'+item.id+'" aria-label="Delete">'+ICONS.trash+'</button>'+
+            '<button type="button" class="icon-btn sm" data-action="edit" data-id="'+escapeHtml(item.id)+'" aria-label="Edit">'+ICONS.edit+'</button>'+
+            '<button type="button" class="icon-btn sm" data-action="delete" data-id="'+escapeHtml(item.id)+'" aria-label="Delete">'+ICONS.trash+'</button>'+
           '</div>'+
         '</div>'+
       '</div>'+
@@ -1016,25 +1045,25 @@
       '<button type="button" class="btn-primary" id="emptyAddBtn">+ Save something</button></div>';
   }
 
+  function viewSignature(){
+    return [activeTopicId, searchQuery, state.sortBy, state.favoritesFirst, state.viewMode].join('|');
+  }
+
+  function updateLoadMore(total){
+    var wrap = $('#loadMore');
+    var left = total - renderedCount;
+    wrap.hidden = left<=0;
+    if(left>0) $('#loadMoreBtn').textContent = 'Show '+Math.min(PAGE_SIZE,left)+' more ('+left+' left)';
+  }
+
   function renderGrid(){
     var grid = $('#grid');
     var emptyState = $('#emptyState');
+    $('#loadMore').hidden = true;
 
     if(state.topics.length===0 && state.items.length===0){
       grid.hidden = true; grid.innerHTML = ''; emptyState.hidden = false;
       emptyState.innerHTML = onboardingEmptyStateHTML();
-      $all('.starter-chip').forEach(function(chip){
-        chip.addEventListener('click', function(){
-          createTopic(chip.getAttribute('data-starter'));
-          renderTopicStrip();
-          chip.disabled = true;
-          chip.classList.add('selected');
-        });
-      });
-      var onboardBtn = $('#onboardingAddBtn');
-      if(onboardBtn) onboardBtn.addEventListener('click', function(){ openItemModal(); });
-      var onboardImportBtn = $('#onboardingImportBtn');
-      if(onboardImportBtn) onboardImportBtn.addEventListener('click', function(){ $('#htmlImportFileInput').click(); });
       return;
     }
 
@@ -1042,31 +1071,64 @@
     if(items.length===0){
       grid.hidden = true; grid.innerHTML = ''; emptyState.hidden = false;
       emptyState.innerHTML = filteredEmptyStateHTML();
-      var emptyBtn = $('#emptyAddBtn');
-      if(emptyBtn) emptyBtn.addEventListener('click', function(){ openItemModal(); });
       return;
     }
 
+    // New filter/search/sort -> start from the first page again. Same view -> keep how far the person scrolled.
+    var sig = viewSignature();
+    if(sig!==lastViewSig){ renderLimit = PAGE_SIZE; lastViewSig = sig; }
+    var shown = items.slice(0, renderLimit);
+    renderedCount = shown.length;
+
     grid.hidden = false; emptyState.hidden = true;
-    grid.innerHTML = items.map(cardHTML).join('');
-    $all('[data-action="edit"]', grid).forEach(function(b){
-      b.addEventListener('click', function(e){ e.stopPropagation(); openItemModal(b.getAttribute('data-id')); });
-    });
-    $all('[data-action="delete"]', grid).forEach(function(b){
-      b.addEventListener('click', function(e){ e.stopPropagation(); deleteItemFlow(b.getAttribute('data-id')); });
-    });
-    $all('[data-action="favorite"]', grid).forEach(function(b){
-      b.addEventListener('click', function(e){ e.stopPropagation(); toggleFavorite(b.getAttribute('data-id')); });
-    });
-    $all('[data-action="toggle-select"]', grid).forEach(function(el){
-      el.addEventListener('click', function(e){ e.stopPropagation(); toggleSelected(el.getAttribute('data-id')); });
-    });
+    grid.innerHTML = shown.map(cardHTML).join('');
+    updateLoadMore(items.length);
   }
+
+  // Empty-state buttons and starter chips, via one delegated listener.
+  $('#emptyState').addEventListener('click', function(e){
+    var chip = e.target.closest('.starter-chip');
+    if(chip){
+      if(chip.disabled) return;
+      createTopic(chip.getAttribute('data-starter'));
+      renderTopicStrip();
+      chip.disabled = true;
+      chip.classList.add('selected');
+      return;
+    }
+    if(e.target.closest('#onboardingAddBtn') || e.target.closest('#emptyAddBtn')) openItemModal();
+    else if(e.target.closest('#onboardingImportBtn')) $('#htmlImportFileInput').click();
+  });
+
+  // Card actions via one delegated listener on the grid.
+  $('#grid').addEventListener('click', function(e){
+    var el = e.target.closest('[data-action]:not([data-action=""])');
+    if(!el || !this.contains(el)) return;
+    var act = el.getAttribute('data-action'), id = el.getAttribute('data-id');
+    if(act==='edit') openItemModal(id);
+    else if(act==='delete') deleteItemFlow(id);
+    else if(act==='favorite') toggleFavorite(id);
+    else if(act==='toggle-select'){
+      if(e.target.closest('a')) e.preventDefault();
+      toggleSelected(id);
+    }
+  });
+
+  $('#loadMoreBtn').addEventListener('click', function(){
+    var items = getFilteredItems();
+    var next = items.slice(renderedCount, renderedCount+PAGE_SIZE);
+    if(!next.length){ updateLoadMore(items.length); return; }
+    var start = renderedCount;
+    $('#grid').insertAdjacentHTML('beforeend', next.map(function(it,i){ return cardHTML(it, start+i+10); }).join(''));
+    renderedCount += next.length;
+    renderLimit = renderedCount;
+    updateLoadMore(items.length);
+  });
 
   function renderToolbar(){
     var row = $('#toolbarRow');
     row.hidden = state.items.length===0;
-    var sortLabels = {newest:'Newest', oldest:'Oldest', alpha:'A\u2013Z', alpha_desc:'Z\u2013A', platform:'Platform', updated:'Recently edited', topic_group:'By topic', topic_count:'Most tagged', notes_length:'Notes first'};
+    var sortLabels = {newest:'Newest', oldest:'Oldest', alpha:'A\u2013Z', alpha_desc:'Z\u2013A', platform:'Platform', updated:'Recently edited'};
     $('#sortMenuBtn').innerHTML = ICONS.sortIcon+' '+(sortLabels[state.sortBy]||'Newest');
     $all('[data-sort]', $('#sortMenu')).forEach(function(b){
       b.classList.toggle('active', b.getAttribute('data-sort')===state.sortBy);
@@ -1099,7 +1161,7 @@
     if(selectedIds[id]) delete selectedIds[id]; else selectedIds[id] = true;
     renderGrid();
     renderBulkBar();
-    renderToolbar(); // keep "Select all"/"Deselect all" label in sync
+    renderToolbar();
   }
 
   function renderBulkBar(){
@@ -1119,8 +1181,9 @@
   }
   function closeModal(backdrop){
     backdrop.classList.remove('open');
-    document.body.style.overflow = '';
-    setTimeout(function(){ backdrop.hidden = true; }, 200);
+    // Only unlock scrolling when no other modal is still open (e.g. confirm on top of the item form).
+    if($all('.modal-backdrop.open').length===0) document.body.style.overflow = '';
+    setTimeout(function(){ if(!backdrop.classList.contains('open')) backdrop.hidden = true; }, 200);
   }
 
   /* ---------------- item modal ---------------- */
@@ -1128,13 +1191,13 @@
     return $all('.topic-pick-chip.selected[data-topic-id]').map(function(c){ return c.getAttribute('data-topic-id'); });
   }
 
-  function populateTopicPicker(selectedIds){
+  function populateTopicPicker(selectedIdList){
     var wrap = $('#topicPicker');
     var chips = state.topics.map(function(t){
-      var selected = selectedIds.indexOf(t.id)!==-1;
+      var selected = selectedIdList.indexOf(t.id)!==-1;
       var c = topicColor(t);
       var icon = t.isCreator ? '<span class="chip-creator-icon">'+ICONS.personIcon+'</span>' : '';
-      return '<button type="button" class="topic-pick-chip'+(selected?' selected':'')+'" data-topic-id="'+t.id+'" style="--chip-color:'+c.base+'">'+icon+escapeHtml(t.name)+'</button>';
+      return '<button type="button" class="topic-pick-chip'+(selected?' selected':'')+'" data-topic-id="'+escapeHtml(t.id)+'" style="--chip-color:'+c.base+'">'+icon+escapeHtml(t.name)+'</button>';
     }).join('');
     wrap.innerHTML = '<div class="topic-pick-list">'+chips+
       '<button type="button" class="topic-pick-chip add-new" id="inlineAddTopicBtn">+ New</button></div>'+
@@ -1150,17 +1213,21 @@
       $('#inlineNewTopicForm').hidden = false;
       $('#inlineNewTopicInput').focus();
     });
-    var confirmBtn = $('#inlineNewTopicConfirm');
-    if(confirmBtn) confirmBtn.addEventListener('click', function(){
+    function confirmNew(){
       var input = $('#inlineNewTopicInput');
       var name = input.value.trim();
       if(!name) return;
       var current = getSelectedTopicIds();
-      var topic = createTopic(name);
-      current.push(topic.id);
+      var existing = state.topics.filter(function(t){ return t.name.toLowerCase()===name.toLowerCase(); })[0];
+      var topic = existing || createTopic(name);
+      if(current.indexOf(topic.id)===-1) current.push(topic.id);
       renderTopicStrip();
       populateTopicPicker(current);
-    });
+    }
+    var confirmBtn = $('#inlineNewTopicConfirm');
+    if(confirmBtn) confirmBtn.addEventListener('click', confirmNew);
+    var newInput = $('#inlineNewTopicInput');
+    if(newInput) newInput.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); confirmNew(); } });
   }
 
   function openItemModal(id){
@@ -1169,7 +1236,7 @@
     var form = $('#itemForm');
     form.reset();
     var item = id ? state.items.filter(function(i){return i.id===id;})[0] : null;
-    populateTopicPicker(item ? item.topicIds : []);
+    populateTopicPicker(item ? item.topicIds : (activeTopicId!=='all' ? [activeTopicId] : []));
     $('#itemModalTitle').textContent = item ? 'Edit saved item' : 'Save something new';
     $('#fieldTitle').value = item ? item.title : '';
     $('#fieldPlatform').value = item ? item.platform : 'instagram';
@@ -1212,32 +1279,35 @@
       var creatorBadge = t.isCreator ? '<span class="chip-creator-icon" style="color:'+topicColor(t).base+'" title="Creator">'+ICONS.personIcon+'</span>' : '';
       return '<div class="topic-manage-row"><span class="chip-dot" style="background:'+topicColor(t).base+'"></span>'+
         creatorBadge+
-        '<input type="text" class="topic-rename-input" value="'+escapeHtml(t.name)+'" maxlength="30" data-id="'+t.id+'">'+
+        '<input type="text" class="topic-rename-input" value="'+escapeHtml(t.name)+'" maxlength="30" data-id="'+escapeHtml(t.id)+'" aria-label="Rename topic">'+
         '<span class="topic-manage-count">'+itemCountForTopic(t.id)+'</span>'+
-        '<button type="button" class="icon-btn sm" data-delete-topic="'+t.id+'" aria-label="Delete topic">'+ICONS.trash+'</button></div>';
+        '<button type="button" class="icon-btn sm" data-delete-topic="'+escapeHtml(t.id)+'" aria-label="Delete topic">'+ICONS.trash+'</button></div>';
     }).join('');
 
     $all('.topic-rename-input', list).forEach(function(input){
       input.addEventListener('change', function(){
         var t = getTopicById(input.getAttribute('data-id'));
         var val = input.value.trim();
-        if(val){ t.name = val; t.updatedAt = Date.now(); persist(); queueSync('topics', t); renderTopicStrip(); }
-        else input.value = t.name;
+        if(t && val){ t.name = val; t.updatedAt = Date.now(); persist(); queueSync('topics', t); renderTopicStrip(); renderGrid(); }
+        else if(t) input.value = t.name;
       });
     });
     $all('[data-delete-topic]', list).forEach(function(btn){
       btn.addEventListener('click', function(){
         var id = btn.getAttribute('data-delete-topic');
         var t = getTopicById(id);
+        if(!t) return;
         showConfirm('Delete topic "'+t.name+'"? Items keep their other topics but lose this one.', function(){
           queueSync('topics', tombstoneFor(t));
           state.topics = state.topics.filter(function(x){ return x.id!==id; });
+          var touched = [];
           state.items.forEach(function(it){
             if(it.topicIds.indexOf(id)===-1) return;
             it.topicIds = it.topicIds.filter(function(tid){ return tid!==id; });
             it.updatedAt = Date.now();
-            queueSync('items', it);
+            touched.push(it);
           });
+          queueSyncMany('items', touched);
           if(activeTopicId===id) activeTopicId = 'all';
           persist();
           renderTopicManageList();
@@ -1249,10 +1319,7 @@
   }
 
   /* ---------------- confirm modal ---------------- */
-  // `options.label` and `options.danger` let call sites override the button
-  // text/styling — it defaults to a red "Delete" button since that's the
-  // most common use, but that wording is wrong for non-destructive
-  // confirmations (e.g. "save this duplicate anyway?").
+  // `options.label` / `options.danger` override the red "Delete" button for non-destructive confirmations.
   function showConfirm(message, onConfirm, options){
     options = options || {};
     $('#confirmMessage').textContent = message;
@@ -1274,8 +1341,9 @@
     setTimeout(function(){
       toast.classList.remove('show');
       setTimeout(function(){ toast.remove(); }, 250);
-    }, 2200);
+    }, 2600);
   }
+  window.showStashToast = showToast;
 
   /* ---------------- export / import / clear ---------------- */
   function exportData(){
@@ -1287,19 +1355,21 @@
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
     showToast('Backup downloaded');
   }
 
   function clearAllData(){
-    var msg = (window.Sync && window.Sync.user)
+    var msg = syncOn()
       ? 'Delete everything in your stash on every synced device? This cannot be undone.'
       : 'Delete everything in your stash? This cannot be undone.';
     showConfirm(msg, function(){
-      state.topics.forEach(function(t){ queueSync('topics', tombstoneFor(t)); });
-      state.items.forEach(function(i){ queueSync('items', tombstoneFor(i)); });
-      state = {topics:[], items:[], theme:state.theme};
+      queueSyncMany('topics', state.topics.map(tombstoneFor));
+      queueSyncMany('items', state.items.map(tombstoneFor));
+      // Keep this device's preferences and usage stats; only the content is cleared.
+      state.topics = []; state.items = [];
       activeTopicId = 'all';
+      selectMode = false; selectedIds = {};
       persist();
       renderAll();
       showToast('Cleared');
@@ -1310,12 +1380,14 @@
   var MAX_IMPORT_CANDIDATES = 1000;
   var htmlImportCandidates = [];
 
-  function findOrCreateTopicByName(name, isCreator){
+  function findOrCreateTopicByName(name, isCreator, created){
     var lower = name.toLowerCase();
     for(var i=0;i<state.topics.length;i++){
       if(state.topics[i].name.toLowerCase()===lower) return state.topics[i];
     }
-    return createTopic(name, isCreator);
+    var t = createTopic(name, isCreator, true);
+    if(created) created.push(t);
+    return t;
   }
 
   function detectPlatformFromUrl(url){
@@ -1363,11 +1435,8 @@
 
   var DATE_RE = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4}\b|\b\d{4}-\d{2}-\d{2}\b/i;
 
-  // Lightweight keyword classifier for auto-tagging imports with a broad topic
-  // (Food, Tech, etc.) alongside the creator tag. Checked against title+notes text.
-  // Matches whole words only (via \b boundaries) — plain substring matching
-  // previously misfired, e.g. "run" (Fitness) matching inside "brunch" or
-  // "prune" (Food), so a food video would get tagged Fitness instead.
+  // Keyword classifier for auto-tagging imports with a broad topic. Whole-word matching only
+  // (plain substring matching once tagged "brunch" as Fitness because of "run").
   var CATEGORY_KEYWORDS = {
     'Food': ['recipe','recipes','cooking','baking','baked','kitchen','dinner','lunch','breakfast','meal','pasta','dessert','snack','food','chef','ingredient','sauce','soup','grill','cocktail','vegan','vegetarian'],
     'Tech': ['tech','software','coding','programming','startup','gadget','iphone','android','laptop','computer','chatgpt'],
@@ -1428,6 +1497,10 @@
   var BAD_IMG_PATTERN = /pixel|spacer|blank\.(gif|png)|transparent|1x1|loading|placeholder-?icon/i;
   var GENERIC_ALT_PATTERN = /^(image|photo|photograph|thumbnail|thumb|preview|video|video preview|icon|picture|img|media)\.?$/i;
 
+  // A container holding several links is shared by many entries, so text, owners and images
+  // found inside it can't be attributed to any one of them. Climbing stops there.
+  function isSharedContainer(node){ return node.querySelectorAll('a[href]').length > 1; }
+
   function imgSrcCandidate(img){
     if(!img) return '';
     var src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') ||
@@ -1437,13 +1510,13 @@
       if(srcset) src = srcset.split(',')[0].trim().split(/\s+/)[0] || '';
     }
     if(src && BAD_IMG_PATTERN.test(src)) return '';
-    return src;
+    return safeUrl(src);
   }
 
   function findThumbnail(a, container){
     var direct = imgSrcCandidate(a.querySelector('img'));
     if(direct) return direct;
-    if(container){
+    if(container && !isSharedContainer(container)){
       var inContainer = imgSrcCandidate(container.querySelector('img'));
       if(inContainer) return inContainer;
     }
@@ -1455,9 +1528,9 @@
       var fromNext = next ? imgSrcCandidate(next.tagName==='IMG'?next:next.querySelector('img')) : '';
       if(fromNext) return fromNext;
     }
-    // Wider fallback: climb further and search the whole subtree at each level.
     var node = a.parentElement, hop = 0;
     while(node && hop<4 && node.tagName!=='BODY' && node.tagName!=='HTML'){
+      if(isSharedContainer(node)) break;
       var found = imgSrcCandidate(node.querySelector('img'));
       if(found) return found;
       node = node.parentElement;
@@ -1483,11 +1556,9 @@
       var el = all[i];
       var direct = directTextOf(el);
 
-      // Pattern A: "Owner: username", "Owner - username", or "Owner username" as one element's own text.
       var inline = direct.match(OWNER_INLINE_RE);
       if(inline && inline[1] && inline[1].length<60) return inline[1];
 
-      // Pattern B: "Owner" alone as a label, value in a nearby sibling.
       if(!OWNER_LABEL_RE.test(direct)) continue;
       var candidates = [];
       if(el.nextElementSibling) candidates.push(el.nextElementSibling);
@@ -1508,6 +1579,7 @@
   function findOwnerCreator(startEl){
     var node = startEl, hop = 0;
     while(node && hop<4 && node.tagName!=='BODY' && node.tagName!=='HTML'){
+      if(isSharedContainer(node)) break;
       var found = searchSubtreeForOwnerLabel(node);
       if(found) return '@'+found.replace(/^@/,'');
       node = node.parentElement;
@@ -1534,25 +1606,24 @@
 
   function candidateFromAnchor(a){
     var href = (a.getAttribute('href')||'').trim();
-    if(!href || href==='#' || /^javascript:/i.test(href) || /^mailto:/i.test(href) || /^tel:/i.test(href)) return null;
+    if(!safeUrl(href)) return null;
 
     var anchorText = (a.textContent||'').trim().replace(/\s+/g,' ');
 
-    // Meta/Instagram-style table exports label each field ("Caption", "Username", "Name")
-    // as a <td> immediately followed by its value <td>, all within one <table> per saved
-    // item. Check this first since it's far more reliable than guessing from raw text.
+    // Meta/Instagram-style exports label each field ("Caption", "Username", "Name") as a <td>
+    // followed by its value <td>, inside one <table> per saved item. Most reliable source.
     var entryTable = a.closest('table');
+    if(entryTable && isSharedContainer(entryTable)) entryTable = null;
     var tableUsername = entryTable ? (findLabeledTableValue(entryTable,'Username') || findLabeledTableValue(entryTable,'Name')) : '';
     var tableCaption = entryTable ? findLabeledTableValue(entryTable,'Caption') : '';
 
-    // Climb ancestors (bounded) to find real caption text — export tools often wrap each
-    // saved link in several sparse nested divs, so the immediate parent alone is often empty.
     var node = a.parentElement;
     var description = tableCaption;
     var descContainer = node;
     if(!description){
       var hops = 0;
       while(node && hops < 3 && node.tagName!=='BODY' && node.tagName!=='HTML'){
+        if(isSharedContainer(node)) break;
         var t = (node.textContent||'').trim().replace(/\s+/g,' ');
         var extra = (anchorText && t.indexOf(anchorText)===0) ? t.slice(anchorText.length).trim() : t;
         if(extra.replace(/[^A-Za-z0-9]/g,'').length > 10){ description = extra; descContainer = node; break; }
@@ -1563,7 +1634,7 @@
     }
     if(description.length>300) description = description.slice(0,300)+'…';
 
-    var nearbyImg = a.querySelector('img') || (descContainer ? descContainer.querySelector('img') : null);
+    var nearbyImg = a.querySelector('img') || (descContainer && !isSharedContainer(descContainer) ? descContainer.querySelector('img') : null);
     var rawImgAlt = nearbyImg ? (nearbyImg.getAttribute('alt')||'').trim() : '';
     var imgAlt = GENERIC_ALT_PATTERN.test(rawImgAlt) ? '' : rawImgAlt;
     var thumb = findThumbnail(a, descContainer);
@@ -1686,7 +1757,7 @@
     var notes = (!titleText && dateHint) ? ('Saved '+dateHint) : '';
     var category = categorizeText(title + ' ' + notes);
 
-    return {href:href, title:title, notes:notes, thumb:thumb, platform:platform, creator:creator, category:category};
+    return {href:href, title:title, notes:notes, thumb:safeUrl(thumb), platform:platform, creator:creator, category:category};
   }
 
   function findEntryArray(root){
@@ -1766,7 +1837,7 @@
 
   function thumbHtml(c){
     if(!c.thumb) return '';
-    return '<span class="import-row-thumb"><img src="'+escapeHtml(c.thumb)+'" alt="" loading="lazy" onerror="this.parentElement.remove();"></span>';
+    return '<span class="import-row-thumb"><img src="'+escapeHtml(c.thumb)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.remove();"></span>';
   }
 
   function renderImportRows(){
@@ -1774,6 +1845,8 @@
     var includeCreator = $('#tagCreatorToggle').checked;
     var includeCategory = $('#tagCategoryToggle').checked;
     var existing = existingUrlSet();
+    var topicNameSet = {};
+    state.topics.forEach(function(t){ topicNameSet[t.name.toLowerCase()] = true; });
     var newTopicNames = {};
     var dupCount = 0;
 
@@ -1782,19 +1855,17 @@
       if(isDup) dupCount++;
       if(includeCreator && c.creator){
         var key = c.creator.toLowerCase();
-        var alreadyExists = state.topics.some(function(t){ return t.name.toLowerCase()===key; });
-        if(!alreadyExists && !newTopicNames[key]) newTopicNames[key] = c.creator;
+        if(!topicNameSet[key] && !newTopicNames[key]) newTopicNames[key] = c.creator;
       }
       if(includeCategory && c.category){
         var catKey = c.category.toLowerCase();
-        var catExists = state.topics.some(function(t){ return t.name.toLowerCase()===catKey; });
-        if(!catExists && !newTopicNames[catKey]) newTopicNames[catKey] = c.category;
+        if(!topicNameSet[catKey] && !newTopicNames[catKey]) newTopicNames[catKey] = c.category;
       }
       var plat = PLATFORMS[c.platform] || PLATFORMS.other;
       var tagParts = [];
       if(includeCreator && c.creator) tagParts.push('<span class="import-row-creator">'+escapeHtml(c.creator)+'</span>');
       if(includeCategory && c.category) tagParts.push('<span class="import-row-creator" style="color:var(--ink-soft)">'+escapeHtml(c.category)+'</span>');
-      var tagsHtml = tagParts.length ? tagParts.join(' · ') : '<span style="opacity:.55">nothing detected</span>';
+      var tagsHtml = tagParts.length ? tagParts.join(' · ') : '<span style="opacity:.65">nothing detected</span>';
       return '<label class="import-row">'+
         '<input type="checkbox" data-import-idx="'+idx+'" '+(isDup?'':'checked')+'>'+
         thumbHtml(c) +
@@ -1810,10 +1881,10 @@
     var newTopicList = Object.keys(newTopicNames).map(function(k){ return newTopicNames[k]; });
     $('#htmlImportSummary').innerHTML = '<strong>'+candidates.length+'</strong> item'+(candidates.length===1?'':'s')+' found'+
       (dupCount ? ', <strong>'+dupCount+'</strong> already in your stash' : '') + '.' +
-      (newTopicList.length ? ' <strong>'+newTopicList.length+'</strong> new topic'+(newTopicList.length===1?'':'s')+' will be added.' : ' No creators or categories detected — items will import untagged.');
+      (newTopicList.length ? ' <strong>'+newTopicList.length+'</strong> new topic'+(newTopicList.length===1?'':'s')+' will be added.' : ' No new creators or categories — items will use your existing topics or import untagged.');
 
     $('#htmlImportTopicsPreview').innerHTML = newTopicList.slice(0,20).map(function(name){
-      return '<span class="tag" style="--tag-color:var(--accent)">'+escapeHtml(name)+'</span>';
+      return '<span class="tag" style="--tag-color:var(--accent-fill)">'+escapeHtml(name)+'</span>';
     }).join('');
 
     updateImportCount();
@@ -1823,24 +1894,29 @@
     var includeCreator = $('#tagCreatorToggle').checked;
     var includeCategory = $('#tagCategoryToggle').checked;
     var checkedBoxes = $all('#htmlImportList input[type="checkbox"]:checked');
-    var count = 0;
+    var newTopics = [], newItems = [];
+    var now = Date.now();
     checkedBoxes.forEach(function(cb){
       var idx = parseInt(cb.getAttribute('data-import-idx'),10);
       var c = htmlImportCandidates[idx];
       if(!c) return;
       var topicIds = [];
-      if(includeCreator && c.creator) topicIds.push(findOrCreateTopicByName(c.creator, true).id);
-      if(includeCategory && c.category) topicIds.push(findOrCreateTopicByName(c.category, false).id);
-      state.items.push({
+      if(includeCreator && c.creator) topicIds.push(findOrCreateTopicByName(c.creator, true, newTopics).id);
+      if(includeCategory && c.category) topicIds.push(findOrCreateTopicByName(c.category, false, newTopics).id);
+      var item = {
         id:uid('item'), title:c.title, platform:c.platform, url:c.href, thumb:c.thumb,
-        notes:c.notes, topicIds:topicIds, createdAt:Date.now()
-      });
-      count++;
+        notes:c.notes, topicIds:topicIds, favorite:false, createdAt:now, updatedAt:now
+      };
+      state.items.push(item);
+      newItems.push(item);
     });
+    // One save and one sync queue write for the whole import (not one per item).
     persist();
+    queueSyncMany('topics', newTopics);
+    queueSyncMany('items', newItems);
     closeModal($('#htmlImportModalBackdrop'));
     renderAll();
-    showToast('Imported '+count+' item'+(count===1?'':'s'));
+    showToast('Imported '+newItems.length+' item'+(newItems.length===1?'':'s'));
   }
 
   /* ---------------- event bindings ---------------- */
@@ -1883,7 +1959,7 @@
   });
   document.addEventListener('click', function(e){
     var menu = $('#sortMenu');
-    if(menu && !menu.hidden && !menu.contains(e.target) && e.target.id!=='sortMenuBtn'){
+    if(menu && !menu.hidden && !menu.contains(e.target) && !e.target.closest('#sortMenuBtn')){
       menu.hidden = true;
       $('#sortMenuBtn').setAttribute('aria-expanded', 'false');
     }
@@ -1919,17 +1995,14 @@
     var ids = Object.keys(selectedIds);
     if(ids.length===0) return;
     showConfirm('Delete '+ids.length+' item'+(ids.length===1?'':'s')+'? This can\'t be undone.', function(){
-      ids.forEach(function(id){
-        var item = state.items.filter(function(i){ return i.id===id; })[0];
-        if(!item) return;
-        queueSync('items', tombstoneFor(item));
-        state.items = state.items.filter(function(i){ return i.id!==id; });
-      });
+      var gone = state.items.filter(function(i){ return selectedIds[i.id]; });
+      queueSyncMany('items', gone.map(tombstoneFor));
+      state.items = state.items.filter(function(i){ return !selectedIds[i.id]; });
       selectMode = false;
       selectedIds = {};
       persist();
       renderAll();
-      showToast('Deleted '+ids.length+' item'+(ids.length===1?'':'s'));
+      showToast('Deleted '+gone.length+' item'+(gone.length===1?'':'s'));
     });
   });
   $('#bulkAddTopicBtn').addEventListener('click', function(){
@@ -1940,13 +2013,15 @@
 
   function openBulkTopicPicker(ids){
     var host = document.createElement('div');
+    host.setAttribute('role','dialog');
+    host.setAttribute('aria-modal','true');
     host.style.cssText = 'position:fixed;inset:0;background:rgba(10,10,14,.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
     var chips = state.topics.map(function(t){
-      return '<button type="button" class="topic-pick-chip" data-topic-id="'+t.id+'" style="--chip-color:'+topicColor(t).base+'">'+escapeHtml(t.name)+'</button>';
+      return '<button type="button" class="topic-pick-chip" data-topic-id="'+escapeHtml(t.id)+'" style="--chip-color:'+topicColor(t).base+'">'+escapeHtml(t.name)+'</button>';
     }).join('');
-    host.innerHTML = '<div style="background:var(--surface);color:var(--ink);width:min(340px,90vw);border-radius:16px;padding:20px;box-shadow:var(--shadow-lg);">'+
+    host.innerHTML = '<div style="background:var(--surface);color:var(--ink);width:min(340px,90vw);max-height:80vh;overflow:auto;border-radius:16px;padding:20px;box-shadow:var(--shadow-lg);">'+
       '<h3 style="margin:0 0 12px;font-size:1.05rem;">Add topic to '+ids.length+' item'+(ids.length===1?'':'s')+'</h3>'+
-      '<div class="topic-pick-list">'+chips+'</div>'+
+      (chips ? '<div class="topic-pick-list">'+chips+'</div>' : '<p class="hint">You have no topics yet. Add some from "+ Topics" first.</p>')+
       '<button type="button" id="bulkTopicCancel" style="width:100%;margin-top:14px;padding:9px;border:none;background:none;color:var(--ink-soft);font-size:.85rem;">Cancel</button>'+
     '</div>';
     document.body.appendChild(host);
@@ -1955,26 +2030,30 @@
     $all('.topic-pick-chip', host).forEach(function(chip){
       chip.addEventListener('click', function(){
         var topicId = chip.getAttribute('data-topic-id');
+        var touched = [];
         ids.forEach(function(id){
           var item = state.items.filter(function(i){ return i.id===id; })[0];
           if(!item) return;
           if(item.topicIds.indexOf(topicId)===-1) item.topicIds.push(topicId);
           item.updatedAt = Date.now();
-          queueSync('items', item);
+          touched.push(item);
         });
+        queueSyncMany('items', touched);
         persist();
         host.remove();
         selectMode = false;
         selectedIds = {};
         renderAll();
-        showToast('Topic added to '+ids.length+' item'+(ids.length===1?'':'s'));
+        showToast('Topic added to '+touched.length+' item'+(touched.length===1?'':'s'));
       });
     });
   }
 
+  var searchTimer = null;
   $('#searchInput').addEventListener('input', function(e){
     searchQuery = e.target.value;
-    renderGrid();
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(renderGrid, 120);
   });
 
   $('#itemForm').addEventListener('submit', function(e){
@@ -1992,9 +2071,9 @@
       notes:$('#fieldNotes').value.trim(),
       topicIds:getSelectedTopicIds()
     };
-    data.updatedAt = Date.now();
 
     function doSave(){
+      data.updatedAt = Date.now();
       if(editingItemId){
         var item = state.items.filter(function(i){return i.id===editingItemId;})[0];
         if(item){ for(var k in data){ item[k]=data[k]; } queueSync('items', item); }
@@ -2012,11 +2091,10 @@
       renderAll();
     }
 
-    // Only warn about duplicates on new saves (not edits), and only when
-    // there's an actual URL to compare — title-only saves can't collide.
+    // Warn about duplicates only on new saves with a URL. The form stays open underneath, so
+    // choosing Cancel returns to it instead of throwing away what was typed.
     var isDuplicate = !editingItemId && url && existingUrlSet()[normalizeUrlForDedup(url)];
     if(isDuplicate){
-      closeModal($('#itemModalBackdrop'));
       showConfirm('You already saved this link. Save it again anyway?', doSave, {label:'Save anyway', danger:false});
     } else {
       doSave();
@@ -2028,6 +2106,10 @@
     var input = $('#newTopicName');
     var name = input.value.trim();
     if(!name) return;
+    if(state.topics.some(function(t){ return t.name.toLowerCase()===name.toLowerCase(); })){
+      showToast('You already have a topic called "'+name+'"');
+      return;
+    }
     createTopic(name);
     input.value = '';
     renderTopicManageList();
@@ -2037,10 +2119,11 @@
 
   $('#confirmOk').addEventListener('click', function(){
     var cb = confirmCallback;
+    confirmCallback = null;
     closeModal($('#confirmModalBackdrop'));
     if(cb) cb();
   });
-  $('#confirmCancel').addEventListener('click', function(){ closeModal($('#confirmModalBackdrop')); });
+  $('#confirmCancel').addEventListener('click', function(){ confirmCallback = null; closeModal($('#confirmModalBackdrop')); });
 
   $all('[data-close]').forEach(function(btn){
     btn.addEventListener('click', function(){ closeModal(btn.closest('.modal-backdrop')); });
@@ -2049,12 +2132,17 @@
     bd.addEventListener('click', function(e){ if(e.target===bd) closeModal(bd); });
   });
   document.addEventListener('keydown', function(e){
-    if(e.key==='Escape'){
-      $all('.modal-backdrop:not([hidden])').forEach(function(bd){ closeModal(bd); });
-      $('#overflowMenu').hidden = true;
-      var sortMenu = $('#sortMenu');
-      if(sortMenu) sortMenu.hidden = true;
+    if(e.key!=='Escape') return;
+    var overlayHost = $('#stashSyncHost');
+    if(overlayHost) return; // sync panel handles its own Escape
+    var menu = $('#overflowMenu'), sortMenu = $('#sortMenu');
+    if(!menu.hidden || (sortMenu && !sortMenu.hidden)){
+      menu.hidden = true; if(sortMenu) sortMenu.hidden = true;
+      return;
     }
+    // Close only the top-most open modal.
+    var open = $all('.modal-backdrop.open');
+    if(open.length) closeModal(open[open.length-1]);
   });
 
   $('#menuToggle').addEventListener('click', function(e){
@@ -2068,7 +2156,7 @@
   });
   document.addEventListener('click', function(e){
     var menu = $('#overflowMenu');
-    if(!menu.hidden && !menu.contains(e.target) && e.target.id!=='menuToggle'){
+    if(!menu.hidden && !menu.contains(e.target) && !e.target.closest('#menuToggle')){
       menu.hidden = true;
     }
   });
@@ -2083,24 +2171,26 @@
     else if(act==='import') $('#importFileInput').click();
     else if(act==='import-html') $('#htmlImportFileInput').click();
     else if(act==='clear-all') clearAllData();
-    else if(act==='sync-open') { if(window.Sync) window.Sync.openPanel(); }
+    else if(act==='sync-open'){
+      if(window.Sync) window.Sync.openPanel();
+      else showToast('Sync is still loading, try again in a second');
+    }
   });
 
   /* ---------------- sync integration ---------------- */
-  // sync.js (loaded separately) reads/writes state through these three hooks
-  // rather than touching the closure variables directly.
+  // sync.js (loaded with `defer`, so it never blocks first paint) reads/writes state through these hooks.
   window.getStashState = function(){ return state; };
   window.persistStashState = function(next){ state = next; persist(); };
   window.renderStashAll = function(){ renderAll(); };
 
   function refreshSyncUI(){
-    var signedIn = !!(window.Sync && window.Sync.user);
+    var signedIn = !!(window.Sync && (window.Sync.user || window.Sync.hasToken));
     var btn = $('#syncMenuBtn');
     if(btn){
       var labelEl = btn.querySelector('.menu-item-label');
       var descEl = btn.querySelector('.menu-item-desc');
       if(labelEl) labelEl.textContent = signedIn ? 'Manage sync' : 'Sync across devices';
-      if(descEl) descEl.textContent = signedIn ? 'View or turn off your sync code' : 'Use the same stash on your phone and laptop';
+      if(descEl) descEl.textContent = signedIn ? 'View your sync code or turn sync off' : 'Use the same stash on your phone and laptop';
     }
     $('#privacyNote').textContent = signedIn
       ? '🔄 Syncing with your other devices.'
@@ -2119,23 +2209,30 @@
       catch(err){ showToast("That file doesn't look like valid JSON"); return; }
 
       if(parsed && Array.isArray(parsed.topics) && Array.isArray(parsed.items)){
-        showConfirm('This looks like a full backup. Import will replace everything currently in your stash. Continue?', function(){
-          // Run through the same migration as a normal page load, so a
-          // backup from before favorites/topic-colors existed doesn't end
-          // up with items/topics missing those fields.
+        showConfirm('This looks like a full backup. Restoring will replace everything currently in your stash. Continue?', function(){
+          // Same migration as a normal page load, so older backups get the fields they lack.
           var migrated = migrateTopicsAndItems(parsed.topics, parsed.items);
+          var now = Date.now();
+          migrated.topics.forEach(function(t){ if(!t.updatedAt) t.updatedAt = now; });
+          migrated.items.forEach(function(i){ if(!i.updatedAt) i.updatedAt = now; });
+          // Anything in the current stash that isn't in the backup must be deleted on synced devices too.
+          var keepTopics = {}, keepItems = {};
+          migrated.topics.forEach(function(t){ keepTopics[t.id] = true; });
+          migrated.items.forEach(function(i){ keepItems[i.id] = true; });
+          queueSyncMany('topics', state.topics.filter(function(t){ return !keepTopics[t.id]; }).map(tombstoneFor));
+          queueSyncMany('items', state.items.filter(function(i){ return !keepItems[i.id]; }).map(tombstoneFor));
+          queueSyncMany('topics', migrated.topics);
+          queueSyncMany('items', migrated.items);
           state = {
             topics:migrated.topics, items:migrated.items,
             theme:state.theme, opens:state.opens, firstOpened:state.firstOpened,
-            // Keep this device's current view/sort preferences rather than
-            // silently resetting them — the backup is about content, not
-            // this device's display settings.
+            // The backup is about content, not this device's display settings.
             viewMode:state.viewMode, sortBy:state.sortBy, favoritesFirst:state.favoritesFirst
           };
           activeTopicId = 'all';
           persist();
           renderAll();
-          showToast('Backup imported');
+          showToast('Backup restored');
         }, {label:'Replace'});
         return;
       }
@@ -2190,7 +2287,14 @@
   persist();
   applyTheme();
   renderAll();
-  if(window.Sync) window.Sync.init().then(refreshSyncUI);
+  refreshSyncUI();
+
+  // sync.js is `defer`red: it runs after this script but before DOMContentLoaded.
+  function bootSync(){
+    if(window.Sync) window.Sync.init().then(refreshSyncUI, refreshSyncUI);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', bootSync);
+  else bootSync();
 
 })();
 </script>

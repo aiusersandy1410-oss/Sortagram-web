@@ -375,8 +375,14 @@ const Sync = (function () {
     }
   }
 
+  // Asks the server (which holds the Gemini key) to read a link and suggest a title, creator and topics.
+  function linkInfo(url, topicNames) {
+    if (!authToken) return Promise.reject(new Error('Turn on sync to use auto-fill'));
+    return api('/api/link-info', { method: 'POST', body: JSON.stringify({ url, existingTopics: topicNames || [] }) });
+  }
+
   return {
-    init, openPanel, signOut: turnOffSync, queueChange, queueChanges, pushSoon,
+    init, openPanel, linkInfo, signOut: turnOffSync, queueChange, queueChanges, pushSoon,
     get user() { return user; },
     get hasToken() { return !!authToken; },
     _test: { mergeIncoming, normItem, normTopic, dedupeTopics, getPending }

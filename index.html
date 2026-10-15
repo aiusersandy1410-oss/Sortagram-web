@@ -334,6 +334,11 @@
     .modal{border-radius:var(--radius-lg); transform:translateY(8px) scale(.98);}
   }
   #itemForm label,.field-group{display:block; font-size:.8rem; font-weight:600; color:var(--ink-soft); margin-bottom:14px;}
+  .autofill-status{font-size:.78rem; color:var(--ink-soft); margin:-8px 0 14px; line-height:1.4;}
+  .autofill-status[hidden]{display:none;}
+  .topic-suggestions{display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-top:10px;}
+  .topic-suggestions[hidden]{display:none;}
+  .topic-suggestions .sugg-label{font-size:.76rem; font-weight:500; color:var(--ink-soft);}
   .optional{font-weight:400; color:var(--ink-faint); text-transform:none;}
   #itemForm input,#itemForm select,#itemForm textarea{
     display:block; width:100%; margin-top:6px; padding:10px 12px; background:var(--surface-2);
@@ -528,6 +533,7 @@
         <label>Paste a link
           <input id="fieldUrl" type="url" placeholder="https://…">
         </label>
+        <p class="autofill-status" id="autofillStatus" role="status" hidden></p>
         <label>Title <span class="optional">optional — we'll fill this in if you skip it</span>
           <input id="fieldTitle" maxlength="140" placeholder="e.g. 5-minute pasta trick">
         </label>
@@ -545,6 +551,7 @@
         <div class="field-group">
           Topics
           <div id="topicPicker" class="topic-picker"></div>
+          <div id="topicSuggestions" class="topic-suggestions" hidden></div>
         </div>
         <button type="button" class="more-details-toggle" id="moreDetailsToggle">+ More details (optional)</button>
         <div class="more-details" id="moreDetailsPanel">
@@ -595,7 +602,7 @@
       <h2 id="guideHeading">Quick guide</h2>
       <div class="guide-section">
         <h3>Saving something</h3>
-        <p>Tap <strong>+ Save</strong>, paste a link, and you're done — title and platform are detected automatically. Notes and a thumbnail are optional.</p>
+        <p>Tap <strong>+ Save</strong>, paste a link, and you're done — title and platform are detected automatically. Notes and a thumbnail are optional. With sync turned on, pasted links are also read by Google Gemini (through our server) to suggest a title and topics.</p>
       </div>
       <div class="guide-section">
         <h3>Organizing</h3>
@@ -636,7 +643,7 @@
       </label>
       <label class="import-toggle-row">
         <input type="checkbox" id="tagCategoryToggle" checked>
-        <span>Tag items with a main topic (e.g. Food, Tech), where detectable</span>
+        <span>Tag items with topics (e.g. Food, Humor, Travel), where detectable</span>
       </label>
       <div class="import-select-row">
         <span class="hint">Uncheck anything you don't want</span>
@@ -681,7 +688,7 @@
     twitter:{label:'X', mono:'X', bg:'#14141B', video:false},
     other:{label:'Other', mono:'•', bg:'#8A8A94', video:false}
   };
-  var STARTER_TOPICS = ['Recipes','Fitness','Fashion','Travel','Home & DIY','Quotes','Beauty','Money'];
+  var STARTER_TOPICS = ['Recipes','Fitness','Fashion','Travel','Home & DIY','Quotes','Beauty','Money','Tech','Music','Books','Pets','Art & Design','Humor','Health','Learning','Gaming','Movies & TV'];
   var STORAGE_KEY = 'stashboard_data_v1';
   var THEME_KEY = 'sortagram_theme';
   var PAGE_SIZE = 36;
@@ -1232,6 +1239,7 @@
 
   function openItemModal(id){
     editingItemId = id || null;
+    resetAutofill();
     var backdrop = $('#itemModalBackdrop');
     var form = $('#itemForm');
     form.reset();
@@ -1450,7 +1458,22 @@
     'Books': ['book','books','novel','reading','author','bookclub','bookish','library'],
     'Music': ['music','song','songs','album','playlist','concert','lyrics','artist','band'],
     'Sports': ['football','basketball','soccer','baseball','tennis','golf','sports','athlete','match','tournament'],
-    'Pets': ['dog','dogs','cat','cats','puppy','kitten','pet','pets','vet']
+    'Pets': ['dog','dogs','cat','cats','puppy','kitten','pet','pets','vet'],
+    'Health': ['health','wellness','nutrition','sleep','meditation','mindfulness','therapy','mental health','healing','supplements'],
+    'Art & Design': ['art','design','illustration','painting','drawing','sketch','graphic','typography','photography','aesthetic','animation'],
+    'Humor': ['funny','meme','memes','comedy','joke','jokes','lol','skit','prank','hilarious'],
+    'Learning': ['learn','learning','tutorial','lesson','study','explained','how to','tips','course','facts'],
+    'Gaming': ['game','games','gaming','gamer','minecraft','fortnite','playstation','xbox','nintendo','esports'],
+    'Movies & TV': ['movie','movies','film','series','netflix','trailer','tv show','actor','cinema'],
+    'Career': ['career','job','resume','interview','productivity','business','entrepreneur','marketing','freelance'],
+    'Parenting': ['parenting','baby','toddler','kids','mom','dad','pregnancy'],
+    'Relationships': ['dating','relationship','relationships','marriage','wedding','friendship'],
+    'Nature': ['nature','hiking','camping','outdoors','wildlife','plants','mountains','beach'],
+    'Cars': ['car','cars','motorcycle','drift','engine','automotive','racing'],
+    'Science': ['science','space','physics','astronomy','biology','chemistry','nasa'],
+    'Dance': ['dance','dancing','choreography','ballet'],
+    'Crafts': ['craft','crafts','knitting','crochet','sewing','woodworking','pottery','handmade'],
+    'Drinks': ['coffee','tea','smoothie','wine','beer','mocktail','latte']
   };
   var CATEGORY_REGEX_CACHE = null;
   function buildCategoryRegexCache(){
@@ -1464,16 +1487,18 @@
     }
     return cache;
   }
+  // Returns up to 3 categories, best match first (count of distinct keyword hits), instead of the first one found.
   function categorizeText(text){
-    if(!text) return '';
+    if(!text) return [];
     if(!CATEGORY_REGEX_CACHE) CATEGORY_REGEX_CACHE = buildCategoryRegexCache();
+    var scored = [];
     for(var category in CATEGORY_REGEX_CACHE){
-      var regexes = CATEGORY_REGEX_CACHE[category];
-      for(var i=0;i<regexes.length;i++){
-        if(regexes[i].test(text)) return category;
-      }
+      var hits = 0, regexes = CATEGORY_REGEX_CACHE[category];
+      for(var i=0;i<regexes.length;i++){ if(regexes[i].test(text)) hits++; }
+      if(hits) scored.push({name:category, hits:hits});
     }
-    return '';
+    scored.sort(function(a,b){ return b.hits - a.hits; });
+    return scored.slice(0,3).map(function(s){ return s.name; });
   }
   function extractDateHint(text){ var m = text && text.match(DATE_RE); return m ? m[0] : ''; }
 
@@ -1657,9 +1682,9 @@
     if(!title) title = hasMeaningfulNotes ? firstSentenceOrSlice(cleanNotes, 70) : buildFallbackTitle(href, platform, dateHint);
     if(title.length>140) title = title.slice(0,140).trim();
     var finalNotes = hasMeaningfulNotes ? cleanNotes : (dateHint ? ('Saved '+dateHint) : '');
-    var category = categorizeText(title + ' ' + finalNotes);
+    var categories = categorizeText(title + ' ' + finalNotes);
 
-    return {href:href, title:title, notes:finalNotes, thumb:thumb, platform:platform, creator:creator, category:category};
+    return {href:href, title:title, notes:finalNotes, thumb:thumb, platform:platform, creator:creator, categories:categories};
   }
 
   function findLinkInObject(obj, depth){
@@ -1755,9 +1780,9 @@
     var title = titleText || buildFallbackTitle(href, platform, dateHint);
     if(title.length>140) title = title.slice(0,140).trim();
     var notes = (!titleText && dateHint) ? ('Saved '+dateHint) : '';
-    var category = categorizeText(title + ' ' + notes);
+    var categories = categorizeText(title + ' ' + notes);
 
-    return {href:href, title:title, notes:notes, thumb:safeUrl(thumb), platform:platform, creator:creator, category:category};
+    return {href:href, title:title, notes:notes, thumb:safeUrl(thumb), platform:platform, creator:creator, categories:categories};
   }
 
   function findEntryArray(root){
@@ -1857,14 +1882,14 @@
         var key = c.creator.toLowerCase();
         if(!topicNameSet[key] && !newTopicNames[key]) newTopicNames[key] = c.creator;
       }
-      if(includeCategory && c.category){
-        var catKey = c.category.toLowerCase();
-        if(!topicNameSet[catKey] && !newTopicNames[catKey]) newTopicNames[catKey] = c.category;
-      }
+      if(includeCategory) (c.categories||[]).forEach(function(cat){
+        var catKey = cat.toLowerCase();
+        if(!topicNameSet[catKey] && !newTopicNames[catKey]) newTopicNames[catKey] = cat;
+      });
       var plat = PLATFORMS[c.platform] || PLATFORMS.other;
       var tagParts = [];
       if(includeCreator && c.creator) tagParts.push('<span class="import-row-creator">'+escapeHtml(c.creator)+'</span>');
-      if(includeCategory && c.category) tagParts.push('<span class="import-row-creator" style="color:var(--ink-soft)">'+escapeHtml(c.category)+'</span>');
+      if(includeCategory && c.categories && c.categories.length) tagParts.push('<span class="import-row-creator" style="color:var(--ink-soft)">'+c.categories.map(escapeHtml).join(', ')+'</span>');
       var tagsHtml = tagParts.length ? tagParts.join(' · ') : '<span style="opacity:.65">nothing detected</span>';
       return '<label class="import-row">'+
         '<input type="checkbox" data-import-idx="'+idx+'" '+(isDup?'':'checked')+'>'+
@@ -1902,7 +1927,7 @@
       if(!c) return;
       var topicIds = [];
       if(includeCreator && c.creator) topicIds.push(findOrCreateTopicByName(c.creator, true, newTopics).id);
-      if(includeCategory && c.category) topicIds.push(findOrCreateTopicByName(c.category, false, newTopics).id);
+      if(includeCategory) (c.categories||[]).forEach(function(cat){ topicIds.push(findOrCreateTopicByName(cat, false, newTopics).id); });
       var item = {
         id:uid('item'), title:c.title, platform:c.platform, url:c.href, thumb:c.thumb,
         notes:c.notes, topicIds:topicIds, favorite:false, createdAt:now, updatedAt:now
@@ -1918,6 +1943,76 @@
     renderAll();
     showToast('Imported '+newItems.length+' item'+(newItems.length===1?'':'s'));
   }
+
+  /* ---------------- link auto-fill (Gemini, sync only) ---------------- */
+  var autofillSeq = 0, autofilledFor = '';
+  function setAutofillStatus(msg){ var el = $('#autofillStatus'); el.hidden = !msg; el.textContent = msg || ''; }
+  function clearSuggestions(){ var box = $('#topicSuggestions'); box.hidden = true; box.innerHTML = ''; }
+  function resetAutofill(){ autofillSeq++; autofilledFor = ''; setAutofillStatus(''); clearSuggestions(); }
+
+  function renderSuggestions(list){
+    var box = $('#topicSuggestions');
+    if(!list.length){ clearSuggestions(); return; }
+    box.innerHTML = '<span class="sugg-label">Suggested:</span>' + list.map(function(s){
+      return '<button type="button" class="topic-pick-chip add-new" data-sug="'+escapeHtml(s.name)+'" data-creator="'+(s.isCreator?'1':'')+'">+ '+escapeHtml(s.name)+'</button>';
+    }).join('');
+    box.hidden = false;
+  }
+  $('#topicSuggestions').addEventListener('click', function(e){
+    var btn = e.target.closest('[data-sug]');
+    if(!btn) return;
+    var name = btn.getAttribute('data-sug');
+    var existing = state.topics.filter(function(t){ return t.name.toLowerCase()===name.toLowerCase(); })[0];
+    var topic = existing || createTopic(name, !!btn.getAttribute('data-creator'));
+    var selected = getSelectedTopicIds();
+    if(selected.indexOf(topic.id)===-1) selected.push(topic.id);
+    btn.remove();
+    if(!$('#topicSuggestions [data-sug]')) clearSuggestions();
+    renderTopicStrip();
+    populateTopicPicker(selected);
+  });
+
+  function applyAutofill(d){
+    if(d.title && !$('#fieldTitle').value.trim()) $('#fieldTitle').value = d.title;
+    if(d.notes && !$('#fieldNotes').value.trim()){
+      $('#fieldNotes').value = d.notes;
+      $('#moreDetailsPanel').classList.add('open');
+      $('#moreDetailsToggle').textContent = '\u2013 Hide details';
+    }
+    // Topics that already exist are selected for the person; new ones are offered as one-tap suggestions
+    // so a wrong guess never clutters their topic list.
+    var selected = getSelectedTopicIds(), suggestions = [];
+    function consider(name, isCreator){
+      var ex = state.topics.filter(function(t){ return t.name.toLowerCase()===name.toLowerCase(); })[0];
+      if(ex){ if(selected.indexOf(ex.id)===-1) selected.push(ex.id); }
+      else suggestions.push({name:name, isCreator:isCreator});
+    }
+    if(d.creator) consider(d.creator, true);
+    (d.topics||[]).forEach(function(n){ consider(n, false); });
+    populateTopicPicker(selected);
+    renderSuggestions(suggestions);
+    setAutofillStatus('\u2728 Filled in from the link \u2014 check it looks right.');
+  }
+
+  function runAutofill(){
+    if(editingItemId || !syncOn() || !window.Sync.linkInfo) return;
+    var url = $('#fieldUrl').value.trim();
+    if(!safeUrl(url) || url===autofilledFor) return;
+    autofilledFor = url;
+    var seq = ++autofillSeq;
+    clearSuggestions();
+    setAutofillStatus('\u2728 Looking up this link with Gemini\u2026');
+    window.Sync.linkInfo(url, state.topics.map(function(t){ return t.name; })).then(function(res){
+      if(seq!==autofillSeq || $('#fieldUrl').value.trim()!==url) return; // person moved on; ignore stale answer
+      if(!res || !res.ok){ setAutofillStatus('Couldn\u2019t read this link \u2014 you can fill in the details yourself.'); return; }
+      applyAutofill(res.data);
+    }, function(err){
+      if(seq!==autofillSeq) return;
+      setAutofillStatus((err && err.message) || 'Couldn\u2019t auto-fill this link.');
+    });
+  }
+  $('#fieldUrl').addEventListener('paste', function(){ setTimeout(runAutofill, 50); });
+  $('#fieldUrl').addEventListener('change', runAutofill);
 
   /* ---------------- event bindings ---------------- */
   $('#fieldUrl').addEventListener('input', function(e){

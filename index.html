@@ -342,6 +342,7 @@
   #itemForm label,.field-group{display:block; font-size:.8rem; font-weight:600; color:var(--ink-soft); margin-bottom:14px;}
   .autofill-status{font-size:.78rem; color:var(--ink-soft); margin:-8px 0 14px; line-height:1.4;}
   .autofill-status[hidden]{display:none;}
+  #manualFields[hidden]{display:none;}
   .topic-suggestions{display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-top:10px;}
   .topic-suggestions[hidden]{display:none;}
   .topic-suggestions .sugg-label{font-size:.76rem; font-weight:500; color:var(--ink-soft);}
@@ -473,7 +474,7 @@
           </button>
           <button type="button" data-action="ai-sort">
             <span class="menu-item-label">Auto-sort with AI</span>
-            <span class="menu-item-desc">Add topics to untagged items (needs sync)</span>
+            <span class="menu-item-desc">Sort 39 untagged items at a time (needs sync)</span>
           </button>
           <button type="button" data-action="clear-all">
             <span class="menu-item-label">Clear all data</span>
@@ -544,6 +545,7 @@
           <input id="fieldUrl" type="url" placeholder="https://…">
         </label>
         <p class="autofill-status" id="autofillStatus" role="status" hidden></p>
+        <div id="manualFields">
         <label>Title <span class="optional">optional — we'll fill this in if you skip it</span>
           <input id="fieldTitle" maxlength="140" placeholder="e.g. 5-minute pasta trick">
         </label>
@@ -572,9 +574,10 @@
             <textarea id="fieldNotes" rows="2" placeholder="Why you saved it…"></textarea>
           </label>
         </div>
+        </div>
         <div class="modal-actions">
           <button type="button" class="btn-ghost" data-close>Cancel</button>
-          <button type="submit" class="btn-primary">Save</button>
+          <button type="submit" class="btn-primary" id="itemSubmitBtn">Save</button>
         </div>
       </form>
     </div>
@@ -612,7 +615,7 @@
       <h2 id="guideHeading">Quick guide</h2>
       <div class="guide-section">
         <h3>Saving something</h3>
-        <p>Tap <strong>+ Save</strong>, paste a link, and you're done — title and platform are detected automatically. Notes and a thumbnail are optional. With sync turned on, pasted links are also read by Google Gemini (through our server) to suggest a title and topics.</p>
+        <p>Tap <strong>+ Save</strong>, paste a link, and you're done — title and platform are detected automatically. Notes and a thumbnail are optional. With sync turned on, you only paste the link: Google Gemini (through our server) fills in the title and topics when you save. If the daily limit is reached, the form lets you enter the details yourself.</p>
       </div>
       <div class="guide-section">
         <h3>Saving straight from Instagram or TikTok</h3>
@@ -1284,6 +1287,16 @@
     var hasExtra = item && (item.thumb || item.notes);
     panel.classList.toggle('open', !!hasExtra);
     $('#moreDetailsToggle').textContent = hasExtra ? '– Hide details' : '+ More details (optional)';
+    // New item + sync on => Gemini-only form. Otherwise (editing, or sync off) the normal manual form.
+    aiMode = !item && syncOn() && !!window.Sync.aiStatus;
+    $('#manualFields').hidden = aiMode;
+    $('#itemSubmitBtn').disabled = false; $('#itemSubmitBtn').textContent = 'Save';
+    if(aiMode){
+      setAutofillStatus('\u2728 Gemini fills in the title and topics when you save.');
+      refreshAiStatus(autofillSeq);
+    } else if(!item && !syncOn()){
+      setAutofillStatus('Tip: turn on sync (\u22ee menu) and Gemini will fill in the title and topics for you.');
+    }
     showModal(backdrop);
     setTimeout(function(){ $('#fieldUrl').focus(); }, 50);
   }
@@ -2001,16 +2014,20 @@
   /* ---------------- auto-sort untagged items (Gemini, sync only) ---------------- */
   function openAiSort(){
     if(!syncOn() || !window.Sync || !window.Sync.linkInfo){ showToast('Turn on sync first \u2014 auto-sort runs through the sync server'); return; }
-    var todo = state.items.filter(function(i){ return !i.topicIds.length && safeUrl(i.url); });
+    // Links Gemini couldn't read last time (private/blocked pages) go to the back of the line, so they
+    // never take a slot from items that haven't been tried yet.
+    var todo = state.items.filter(function(i){ return !i.topicIds.length && safeUrl(i.url); })
+      .sort(function(a,b){ return (a.aiTriedAt?1:0) - (b.aiTriedAt?1:0); });
     if(!todo.length){ showToast('Every item already has a topic'); return; }
-    var batch = todo.slice(0, 100);
+    var RUN_SIZE = 39, CHUNK = 10;   // 39 unsorted items per run, sent to Gemini 10 links at a time
+    var batch = todo.slice(0, RUN_SIZE);
     var stopped = false, running = false;
     var host = document.createElement('div');
     host.setAttribute('role','dialog'); host.setAttribute('aria-modal','true');
     host.style.cssText = 'position:fixed;inset:0;background:rgba(10,10,14,.45);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
     host.innerHTML = '<div style="background:var(--surface);color:var(--ink);width:min(380px,100%);max-height:90vh;overflow:auto;border-radius:16px;padding:20px;box-shadow:var(--shadow-lg);">'+
       '<h3 style="margin:0 0 10px;font-size:1.05rem;">Auto-sort with AI</h3>'+
-      '<p class="hint" id="aiInfo" style="line-height:1.5;margin-bottom:12px;">'+todo.length+' item'+(todo.length===1?' has':'s have')+' no topics. Gemini will read '+(batch.length<todo.length?'the first '+batch.length+' links':'each link')+' (about 5 seconds each) and add topics. Private or blocked pages stay untagged. Links are sent to Google Gemini through your sync server.</p>'+
+      '<p class="hint" id="aiInfo" style="line-height:1.5;margin-bottom:12px;">'+todo.length+' item'+(todo.length===1?' has':'s have')+' no topics. Each run sorts up to 39 of them: '+(batch.length<todo.length?'this one takes the first '+batch.length:'this one takes all '+batch.length)+', sent to Gemini 10 links at a time. Private or blocked pages stay untagged. Links are sent to Google Gemini through your sync server.</p>'+
       '<div style="height:8px;border-radius:99px;background:var(--surface-2);border:1px solid var(--border);overflow:hidden;margin-bottom:8px;"><div id="aiBar" style="height:100%;width:0;background:var(--accent-fill);transition:width .2s ease;"></div></div>'+
       '<p class="hint" id="aiStatus" role="status" style="min-height:1.3em;margin-bottom:12px;"></p>'+
       '<div class="modal-actions"><button type="button" class="btn-ghost" id="aiClose">Close</button><button type="button" class="btn-primary" id="aiStart">Start</button></div></div>';
@@ -2050,106 +2067,112 @@
     startBtn.addEventListener('click', async function(){
       running = true; startBtn.disabled = true; startBtn.textContent = 'Working\u2026'; closeBtn.textContent = 'Stop';
       var tagged = 0, unread = 0, noTopic = 0, errorsInRow = 0;
-      for(var k=0; k<batch.length && !stopped; k++){
-        var it = batch[k], res = null, tries = 0;
-        statusEl.textContent = 'Reading ' + (k+1) + ' of ' + batch.length + '\u2026 ' + tagged + ' sorted so far';
-        while(tries < 2){
-          tries++;
-          try{ res = await window.Sync.linkInfo(it.url, state.topics.map(function(t){ return t.name; })); errorsInRow = 0; break; }
-          catch(err){
-            var m = (err && err.message) || '';
-            if(/busy/i.test(m) && tries < 2){ statusEl.textContent = 'Gemini is busy \u2014 waiting a moment\u2026'; await wait(20000); continue; }
-            if(/limit reached|busy|isn.t set up/i.test(m)){ finish('Stopped: ' + m + ' ' + tagged + ' item' + (tagged===1?'':'s') + ' sorted.'); return; }
-            errorsInRow++; res = null; break;
-          }
+      var leftover = todo.length - batch.length;
+      var byHand = ' The rest stay unsorted \u2014 you can open an item, tap Edit and add its topics by hand.';
+      for(var k=0; k<batch.length && !stopped; k+=CHUNK){
+        var chunk = batch.slice(k, k+CHUNK), res = null;
+        statusEl.textContent = 'Sending links ' + (k+1) + '\u2013' + (k+chunk.length) + ' of ' + batch.length + ' to Gemini\u2026 ' + tagged + ' sorted so far';
+        try{
+          res = await window.Sync.linkInfoBatch(chunk.map(function(i){ return i.url; }), state.topics.map(function(t){ return t.name; }));
+          errorsInRow = 0;
+        }catch(err){
+          var m = (err && err.message) || 'connection problem';
+          if(err && err.code==='limit'){ finish('Stopped: ' + m + ' ' + tagged + ' sorted.' + byHand); return; }
+          if(err && err.code==='unavailable'){ finish('Stopped: ' + m + ' ' + tagged + ' sorted.'); return; }
+          errorsInRow++;
+          if(errorsInRow >= 2){ finish('Stopped after connection errors (' + m + '). ' + tagged + ' sorted.'); return; }
+          unread += chunk.length; continue;
         }
-        if(errorsInRow >= 3){ finish('Stopped after repeated connection errors. ' + tagged + ' sorted.'); return; }
         if(res && !res.ok && hintText[res.hint]){ finish(hintText[res.hint] + ' ' + tagged + ' sorted.'); return; }
-        if(res && res.ok){ if(apply(it, res.data)) tagged++; else noTopic++; } else unread++;
-        barEl.style.width = Math.round(((k+1)/batch.length)*100) + '%';
-        if((k+1) % 5 === 0) flush();
+        if(res && res.ok){
+          res.results.forEach(function(r, i){
+            if(r && r.ok){ if(apply(chunk[i], r.data)) tagged++; else noTopic++; } else { unread++; chunk[i].aiTriedAt = Date.now(); }
+          });
+        } else unread += chunk.length;
+        barEl.style.width = Math.round((Math.min(k+CHUNK, batch.length)/batch.length)*100) + '%';
+        flush();
       }
-      finish((stopped ? 'Stopped. ' : 'Done. ') + tagged + ' sorted' + (unread ? ', ' + unread + ' couldn\u2019t be read (private or blocked pages)' : '') + (noTopic ? ', ' + noTopic + ' had no clear topic' : '') + '.');
+      finish((stopped ? 'Stopped. ' : 'Done. ') + tagged + ' sorted' +
+        (unread ? ', ' + unread + ' couldn\u2019t be read (private or blocked pages)' : '') +
+        (noTopic ? ', ' + noTopic + ' had no clear topic' : '') + '.' +
+        (leftover>0 && !stopped ? ' ' + leftover + ' more are waiting \u2014 run it again for the next 39.' : ''));
     });
   }
 
-  /* ---------------- link auto-fill (Gemini, sync only) ---------------- */
-  var autofillSeq = 0, autofilledFor = '';
+  /* ---------------- Gemini-only saving: shared helpers ---------------- */
+  var autofillSeq = 0;
   function setAutofillStatus(msg){ var el = $('#autofillStatus'); el.hidden = !msg; el.textContent = msg || ''; }
-  function clearSuggestions(){ var box = $('#topicSuggestions'); box.hidden = true; box.innerHTML = ''; }
-  function resetAutofill(){ autofillSeq++; autofilledFor = ''; setAutofillStatus(''); clearSuggestions(); }
+  function resetAutofill(){ autofillSeq++; setAutofillStatus(''); }
 
-  function renderSuggestions(list){
-    var box = $('#topicSuggestions');
-    if(!list.length){ clearSuggestions(); return; }
-    box.innerHTML = '<span class="sugg-label">Suggested:</span>' + list.map(function(s){
-      return '<button type="button" class="topic-pick-chip add-new" data-sug="'+escapeHtml(s.name)+'" data-creator="'+(s.isCreator?'1':'')+'">+ '+escapeHtml(s.name)+'</button>';
-    }).join('');
-    box.hidden = false;
-  }
-  $('#topicSuggestions').addEventListener('click', function(e){
-    var btn = e.target.closest('[data-sug]');
-    if(!btn) return;
-    var name = btn.getAttribute('data-sug');
-    var existing = state.topics.filter(function(t){ return t.name.toLowerCase()===name.toLowerCase(); })[0];
-    var topic = existing || createTopic(name, !!btn.getAttribute('data-creator'));
-    var selected = getSelectedTopicIds();
-    if(selected.indexOf(topic.id)===-1) selected.push(topic.id);
-    btn.remove();
-    if(!$('#topicSuggestions [data-sug]')) clearSuggestions();
-    renderTopicStrip();
-    populateTopicPicker(selected);
-  });
+  // Gemini-only saving. With sync on, a new item is just a link: details come from Gemini when the person taps Save.
+  // The manual fields appear only when Gemini can't be used (daily limit reached, server problem, offline) or sync is off.
+  var aiMode = false;
 
-  function applyAutofill(d){
-    if(d.title && !$('#fieldTitle').value.trim()) $('#fieldTitle').value = d.title;
-    if(d.notes && !$('#fieldNotes').value.trim()){
-      $('#fieldNotes').value = d.notes;
-      $('#moreDetailsPanel').classList.add('open');
-      $('#moreDetailsToggle').textContent = '\u2013 Hide details';
-    }
-    // Topics that already exist are selected for the person; new ones are offered as one-tap suggestions
-    // so a wrong guess never clutters their topic list.
-    var selected = getSelectedTopicIds(), suggestions = [];
-    function consider(name, isCreator){
-      var ex = state.topics.filter(function(t){ return t.name.toLowerCase()===name.toLowerCase(); })[0];
-      if(ex){ if(selected.indexOf(ex.id)===-1) selected.push(ex.id); }
-      else suggestions.push({name:name, isCreator:isCreator});
-    }
-    if(d.creator) consider(d.creator, true);
-    (d.topics||[]).forEach(function(n){ consider(n, false); });
-    populateTopicPicker(selected);
-    renderSuggestions(suggestions);
-    setAutofillStatus('\u2728 Filled in from the link \u2014 check it looks right.');
+  function switchToManual(msg){
+    aiMode = false;
+    $('#manualFields').hidden = false;
+    var btn = $('#itemSubmitBtn'); btn.disabled = false; btn.textContent = 'Save';
+    setAutofillStatus(msg);
+    setTimeout(function(){ $('#fieldTitle').focus(); }, 50);
   }
 
-  function runAutofill(){
-    if(editingItemId || !syncOn() || !window.Sync.linkInfo) return;
+  function refreshAiStatus(seq){
+    window.Sync.aiStatus().then(function(s){
+      if(seq!==autofillSeq || !aiMode) return;
+      if(!s.enabled){ switchToManual('Auto-fill isn\u2019t set up on the server yet. Enter the details yourself.'); return; }
+      if(s.remaining<=0){ switchToManual('Today\u2019s auto-fill limit is reached ('+s.limit+' links). Enter the details yourself \u2014 it resets at midnight UTC.'); return; }
+      setAutofillStatus('\u2728 Gemini fills in the title and topics when you save. '+s.remaining+' of '+s.limit+' auto-fills left today.');
+    }, function(){ /* offline or server asleep: stay in Gemini mode; saving explains if it can't connect */ });
+  }
+
+  function commitAiItem(url, platform, d){
+    var newTopics = [], ids = [];
+    function add(name, isCreator){ var t = findOrCreateTopicByName(name, isCreator, newTopics); if(ids.indexOf(t.id)===-1) ids.push(t.id); }
+    if(d){ if(d.creator) add(d.creator, true); (d.topics||[]).forEach(function(n){ add(n, false); }); }
+    var now = Date.now();
+    var item = {
+      id:uid('item'), title:d ? d.title : buildFallbackTitle(url, platform, ''), platform:platform, url:url, thumb:'',
+      notes:d ? (d.notes||'') : '', topicIds:ids, favorite:false, createdAt:now, updatedAt:now
+    };
+    state.items.push(item);
+    persist();
+    queueSyncMany('topics', newTopics);
+    queueSync('items', item);
+    closeModal($('#itemModalBackdrop'));
+    renderAll();
+    showToast(d ? 'Saved and sorted by Gemini' : 'Saved. Gemini couldn\u2019t read this link \u2014 tap Edit to add details.');
+  }
+
+  function saveViaGemini(){
     var url = $('#fieldUrl').value.trim();
-    if(!safeUrl(url) || url===autofilledFor) return;
-    autofilledFor = url;
-    var seq = ++autofillSeq;
-    clearSuggestions();
-    setAutofillStatus('\u2728 Looking up this link with Gemini\u2026');
-    window.Sync.linkInfo(url, state.topics.map(function(t){ return t.name; })).then(function(res){
-      if(seq!==autofillSeq || $('#fieldUrl').value.trim()!==url) return; // person moved on; ignore stale answer
-      if(!res || !res.ok){
+    if(!safeUrl(url)){ showToast('Paste a link to save'); return; }
+    var platform = detectPlatformFromUrl(url);
+    function run(){
+      var seq = autofillSeq, btn = $('#itemSubmitBtn');
+      btn.disabled = true; btn.textContent = 'Reading link\u2026';
+      setAutofillStatus('\u2728 Gemini is reading this link\u2026');
+      window.Sync.linkInfo(url, state.topics.map(function(t){ return t.name; })).then(function(res){
+        if(seq!==autofillSeq) return;
+        btn.disabled = false; btn.textContent = 'Save';
+        if(res && res.ok){ commitAiItem(url, platform, res.data); return; }
+        if(res && res.reason==='unreadable'){ commitAiItem(url, platform, null); return; }
         var hints = {
-          key:'Auto-fill isn\u2019t set up correctly on the server (check the Gemini API key).',
-          model:'The AI model used for auto-fill is unavailable. The server\u2019s model name needs updating.',
-          timeout:'That link took too long to read. You can fill in the details yourself.'
+          key:'Gemini isn\u2019t working on the server (check its API key). Enter the details yourself.',
+          model:'The AI model is unavailable (the server\u2019s model name needs updating). Enter the details yourself.',
+          timeout:'That link took too long to read. Enter the details yourself.'
         };
-        setAutofillStatus((res && hints[res.hint]) || 'Couldn\u2019t read this link \u2014 you can fill in the details yourself.');
-        return;
-      }
-      applyAutofill(res.data);
-    }, function(err){
-      if(seq!==autofillSeq) return;
-      setAutofillStatus((err && err.message) || 'Couldn\u2019t auto-fill this link.');
-    });
+        switchToManual((res && hints[res.hint]) || 'Gemini couldn\u2019t process this link. Enter the details yourself.');
+      }, function(err){
+        if(seq!==autofillSeq) return;
+        if(err && err.code==='limit') switchToManual((err.message || 'Auto-fill limit reached.') + ' Enter the details yourself.');
+        else switchToManual('Couldn\u2019t reach Gemini (' + ((err && err.message) || 'connection problem') + '). Enter the details yourself, or close this and try again.');
+      });
+    }
+    // Check for a duplicate first, so a link you already have never uses up an auto-fill.
+    if(existingUrlSet()[normalizeUrlForDedup(url)]){
+      showConfirm('You already saved this link. Save it again anyway?', run, {label:'Save anyway', danger:false});
+    } else run();
   }
-  $('#fieldUrl').addEventListener('paste', function(){ setTimeout(runAutofill, 50); });
-  $('#fieldUrl').addEventListener('change', runAutofill);
 
   /* ---------------- event bindings ---------------- */
   $('#fieldUrl').addEventListener('input', function(e){
@@ -2290,6 +2313,7 @@
 
   $('#itemForm').addEventListener('submit', function(e){
     e.preventDefault();
+    if(!editingItemId && aiMode){ saveViaGemini(); return; }
     var title = $('#fieldTitle').value.trim();
     var url = $('#fieldUrl').value.trim();
     if(!title && !url){ showToast('Add a link or a title to save this'); return; }
@@ -2537,7 +2561,6 @@
     $('#fieldUrl').value = stripTrackingParams(found);
     $('#fieldUrl').dispatchEvent(new Event('input', {bubbles:true}));
     if(title && !firstWebUrl(title) && title.length<=140) $('#fieldTitle').value = title;
-    $('#fieldUrl').dispatchEvent(new Event('change', {bubbles:true}));
   }
   function bootSync(){
     handleIncomingShare();

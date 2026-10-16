@@ -27,6 +27,12 @@
 <meta name="description" content="Sortagram is a free, private tool for organizing your saved Instagram reels, TikToks, and posts by topic and creator. No accounts, no tracking — everything runs locally in your browser.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://sortagram.vercel.app/">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FF5A4E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sortagram">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Sortagram — organize your saved reels & posts">
 <meta property="og:description" content="A free, private tool for organizing your saved Instagram reels, TikToks, and posts by topic and creator. No accounts, no tracking.">
@@ -465,6 +471,10 @@
             <span class="menu-item-label">Import saved posts</span>
             <span class="menu-item-desc">From an exported Instagram/TikTok file</span>
           </button>
+          <button type="button" data-action="ai-sort">
+            <span class="menu-item-label">Auto-sort with AI</span>
+            <span class="menu-item-desc">Add topics to untagged items (needs sync)</span>
+          </button>
           <button type="button" data-action="clear-all">
             <span class="menu-item-label">Clear all data</span>
             <span class="menu-item-desc">Delete everything on this device</span>
@@ -605,6 +615,10 @@
         <p>Tap <strong>+ Save</strong>, paste a link, and you're done — title and platform are detected automatically. Notes and a thumbnail are optional. With sync turned on, pasted links are also read by Google Gemini (through our server) to suggest a title and topics.</p>
       </div>
       <div class="guide-section">
+        <h3>Saving straight from Instagram or TikTok</h3>
+        <p>Install Sortagram (browser menu → <strong>Install app</strong> / <strong>Add to Home screen</strong>). On Android it then appears in the <strong>Share</strong> menu of Instagram, TikTok and your browser. You can also open <strong>sortagram.vercel.app/?url=</strong> followed by a link to pre-fill the Save form.</p>
+      </div>
+      <div class="guide-section">
         <h3>Organizing</h3>
         <p>Tag items with <strong>topics</strong> (like Food or Travel) and <strong>creators</strong> (like @someone) — up to you which, or both. Switch between viewing them together or separately using the row above your topic list.</p>
       </div>
@@ -729,13 +743,28 @@
   // Only http(s) links may be opened or shown as images; blocks javascript: / data: URLs from
   // hand-typed, imported or synced records.
   function safeUrl(u){ return /^https?:\/\//i.test(String(u||'').trim()) ? String(u).trim() : ''; }
+  // Share links carry tracking params (Instagram ?igsh=, TikTok ?_t=, utm_*, ...) that differ every time,
+  // so the same post would never be recognised as a duplicate. Everything else in the query is kept.
+  var TRACKING_PARAM = /^(igsh|igshid|utm_[a-z]+|si|fbclid|is_from_webapp|sender_device|_t|_r|feature|ref|share_id)$/i;
+  function cleanSearch(u){
+    var keep = [];
+    u.searchParams.forEach(function(v,k){ if(!TRACKING_PARAM.test(k)) keep.push(encodeURIComponent(k)+'='+encodeURIComponent(v)); });
+    return keep.length ? '?'+keep.join('&') : '';
+  }
+  function stripTrackingParams(url){
+    try{ var u = new URL(url); return u.origin + u.pathname + cleanSearch(u) + u.hash; }catch(e){ return url; }
+  }
+  function firstWebUrl(s){
+    var m = /https?:\/\/[^\s<>"']+/i.exec(String(s||''));
+    return m ? m[0].replace(/[.,;:!?)\]]+$/, '') : '';
+  }
   // Normalizes a URL for duplicate comparison only (never for display or saving).
   function normalizeUrlForDedup(url){
     if(!url) return '';
     try{
       var u = new URL(url, window.location.href);
       var path = u.pathname.replace(/\/+$/, '');
-      return u.protocol.toLowerCase()+'//'+u.hostname.toLowerCase()+path+u.search;
+      return u.protocol.toLowerCase()+'//'+u.hostname.toLowerCase()+path+cleanSearch(u);
     }catch(e){
       return url.trim();
     }
@@ -1475,6 +1504,30 @@
     'Crafts': ['craft','crafts','knitting','crochet','sewing','woodworking','pottery','handmade'],
     'Drinks': ['coffee','tea','smoothie','wine','beer','mocktail','latte']
   };
+  var EXTRA_KEYWORDS = {
+    'Food': ['foodie','yummy','homemade','mealprep','airfryer','bbq','restaurant','delicious','bake','cook','tasty','eats','brunch','pizza','burger','noodles','salad'],
+    'Tech': ['ai','app','apps','gadgets','python','javascript','openai','developer','robot','software','website','cybersecurity','gpt'],
+    'Fitness': ['gymtok','lifting','bodybuilding','pilates','calisthenics','hiit','weightlifting','abs','stretch','marathon','runner','gains'],
+    'Fashion': ['streetwear','thrift','lookbook','haul','dress','jeans','outfits','styling','jewelry','bag','shoes'],
+    'Travel': ['trip','roadtrip','wanderlust','resort','tour','passport','backpacking','cruise','airbnb','visit','explore'],
+    'Money': ['money','stocks','stock','wealth','invest','realestate','passive income','tax','credit','savings','frugal','retire'],
+    'Beauty': ['hair','nails','lashes','foundation','lipstick','hairstyle','skin','glow','serum','perfume'],
+    'Home & DIY': ['home','house','apartment','room','bedroom','kitchen decor','hack','hacks','storage','paint','tools'],
+    'Quotes': ['mindset','wisdom','reminder','affirmations','growth','selflove','self love','positive'],
+    'Music': ['rap','hiphop','guitar','piano','singer','dj','remix','cover','vocals'],
+    'Humor': ['relatable','jokes','satire','roast','fail','fails','cringe'],
+    'Movies & TV': ['show','shows','episode','anime','disney','marvel','hbo','streaming','sitcom'],
+    'Learning': ['history','fact','facts','knowledge','teach','educational','explain','guide','beginner'],
+    'Pets': ['doggo','pup','puppies','kittens','kitty','aquarium','hamster','bird'],
+    'Health': ['doctor','medical','vitamin','diet','healthy','gut','hydration','posture','immune']
+  };
+  Object.keys(EXTRA_KEYWORDS).forEach(function(cat){ CATEGORY_KEYWORDS[cat] = CATEGORY_KEYWORDS[cat].concat(EXTRA_KEYWORDS[cat]); });
+  // "#HomeDecor" / "#meal_prep" -> "Home Decor" / "meal prep", so hashtags can be matched like normal words.
+  function hashtagWords(text){
+    return (String(text||'').match(/#[A-Za-z0-9_]+/g) || []).map(function(t){
+      return t.slice(1).replace(/_/g,' ').replace(/([a-z])([A-Z])/g,'$1 $2');
+    }).join(' ');
+  }
   var CATEGORY_REGEX_CACHE = null;
   function buildCategoryRegexCache(){
     var cache = {};
@@ -1482,7 +1535,8 @@
       var words = CATEGORY_KEYWORDS[category];
       cache[category] = words.map(function(w){
         var escaped = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        return new RegExp('\\b' + escaped + '\\b', 'i');
+        // allow simple endings so "workouts", "cooked", "travelling" still match
+        return new RegExp('\\b' + escaped + '(?:s|es|ed|ing|er|ers)?\\b', 'i');
       });
     }
     return cache;
@@ -1682,7 +1736,7 @@
     if(!title) title = hasMeaningfulNotes ? firstSentenceOrSlice(cleanNotes, 70) : buildFallbackTitle(href, platform, dateHint);
     if(title.length>140) title = title.slice(0,140).trim();
     var finalNotes = hasMeaningfulNotes ? cleanNotes : (dateHint ? ('Saved '+dateHint) : '');
-    var categories = categorizeText(title + ' ' + finalNotes);
+    var categories = categorizeText(title + ' ' + finalNotes + ' ' + hashtagWords(description));
 
     return {href:href, title:title, notes:finalNotes, thumb:thumb, platform:platform, creator:creator, categories:categories};
   }
@@ -1780,7 +1834,7 @@
     var title = titleText || buildFallbackTitle(href, platform, dateHint);
     if(title.length>140) title = title.slice(0,140).trim();
     var notes = (!titleText && dateHint) ? ('Saved '+dateHint) : '';
-    var categories = categorizeText(title + ' ' + notes);
+    var categories = categorizeText(title + ' ' + notes + ' ' + texts.map(hashtagWords).join(' ') + ' ' + texts.join(' '));
 
     return {href:href, title:title, notes:notes, thumb:safeUrl(thumb), platform:platform, creator:creator, categories:categories};
   }
@@ -1944,6 +1998,81 @@
     showToast('Imported '+newItems.length+' item'+(newItems.length===1?'':'s'));
   }
 
+  /* ---------------- auto-sort untagged items (Gemini, sync only) ---------------- */
+  function openAiSort(){
+    if(!syncOn() || !window.Sync || !window.Sync.linkInfo){ showToast('Turn on sync first \u2014 auto-sort runs through the sync server'); return; }
+    var todo = state.items.filter(function(i){ return !i.topicIds.length && safeUrl(i.url); });
+    if(!todo.length){ showToast('Every item already has a topic'); return; }
+    var batch = todo.slice(0, 100);
+    var stopped = false, running = false;
+    var host = document.createElement('div');
+    host.setAttribute('role','dialog'); host.setAttribute('aria-modal','true');
+    host.style.cssText = 'position:fixed;inset:0;background:rgba(10,10,14,.45);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+    host.innerHTML = '<div style="background:var(--surface);color:var(--ink);width:min(380px,100%);max-height:90vh;overflow:auto;border-radius:16px;padding:20px;box-shadow:var(--shadow-lg);">'+
+      '<h3 style="margin:0 0 10px;font-size:1.05rem;">Auto-sort with AI</h3>'+
+      '<p class="hint" id="aiInfo" style="line-height:1.5;margin-bottom:12px;">'+todo.length+' item'+(todo.length===1?' has':'s have')+' no topics. Gemini will read '+(batch.length<todo.length?'the first '+batch.length+' links':'each link')+' (about 5 seconds each) and add topics. Private or blocked pages stay untagged. Links are sent to Google Gemini through your sync server.</p>'+
+      '<div style="height:8px;border-radius:99px;background:var(--surface-2);border:1px solid var(--border);overflow:hidden;margin-bottom:8px;"><div id="aiBar" style="height:100%;width:0;background:var(--accent-fill);transition:width .2s ease;"></div></div>'+
+      '<p class="hint" id="aiStatus" role="status" style="min-height:1.3em;margin-bottom:12px;"></p>'+
+      '<div class="modal-actions"><button type="button" class="btn-ghost" id="aiClose">Close</button><button type="button" class="btn-primary" id="aiStart">Start</button></div></div>';
+    document.body.appendChild(host);
+    var statusEl = host.querySelector('#aiStatus'), barEl = host.querySelector('#aiBar'), startBtn = host.querySelector('#aiStart'), closeBtn = host.querySelector('#aiClose');
+    var newTopics = [], touched = [];
+    function flush(){
+      persist();
+      queueSyncMany('topics', newTopics.splice(0));
+      queueSyncMany('items', touched.splice(0));
+      renderAll();
+    }
+    function finish(msg){
+      running = false; flush();
+      statusEl.textContent = msg; startBtn.hidden = true; closeBtn.textContent = 'Done';
+    }
+    host.addEventListener('click', function(e){ if(e.target===host && !running) host.remove(); });
+    closeBtn.addEventListener('click', function(){ if(running){ stopped = true; closeBtn.textContent = 'Stopping\u2026'; } else host.remove(); });
+
+    function apply(it, d){
+      var ids = [];
+      function add(name, isCreator){ var t = findOrCreateTopicByName(name, isCreator, newTopics); if(ids.indexOf(t.id)===-1) ids.push(t.id); }
+      if(d.creator) add(d.creator, true);
+      (d.topics||[]).forEach(function(n){ add(n, false); });
+      if(!ids.length) return false;
+      it.topicIds = ids; it.updatedAt = Date.now();
+      if(d.notes && !it.notes) it.notes = d.notes;
+      touched.push(it);
+      return true;
+    }
+    var wait = function(ms){ return new Promise(function(r){ setTimeout(r, ms); }); };
+    var hintText = {
+      key:'Stopped: the server\u2019s Gemini API key isn\u2019t working.',
+      model:'Stopped: the AI model is unavailable. The server\u2019s model name needs updating.'
+    };
+
+    startBtn.addEventListener('click', async function(){
+      running = true; startBtn.disabled = true; startBtn.textContent = 'Working\u2026'; closeBtn.textContent = 'Stop';
+      var tagged = 0, unread = 0, noTopic = 0, errorsInRow = 0;
+      for(var k=0; k<batch.length && !stopped; k++){
+        var it = batch[k], res = null, tries = 0;
+        statusEl.textContent = 'Reading ' + (k+1) + ' of ' + batch.length + '\u2026 ' + tagged + ' sorted so far';
+        while(tries < 2){
+          tries++;
+          try{ res = await window.Sync.linkInfo(it.url, state.topics.map(function(t){ return t.name; })); errorsInRow = 0; break; }
+          catch(err){
+            var m = (err && err.message) || '';
+            if(/busy/i.test(m) && tries < 2){ statusEl.textContent = 'Gemini is busy \u2014 waiting a moment\u2026'; await wait(20000); continue; }
+            if(/limit reached|busy|isn.t set up/i.test(m)){ finish('Stopped: ' + m + ' ' + tagged + ' item' + (tagged===1?'':'s') + ' sorted.'); return; }
+            errorsInRow++; res = null; break;
+          }
+        }
+        if(errorsInRow >= 3){ finish('Stopped after repeated connection errors. ' + tagged + ' sorted.'); return; }
+        if(res && !res.ok && hintText[res.hint]){ finish(hintText[res.hint] + ' ' + tagged + ' sorted.'); return; }
+        if(res && res.ok){ if(apply(it, res.data)) tagged++; else noTopic++; } else unread++;
+        barEl.style.width = Math.round(((k+1)/batch.length)*100) + '%';
+        if((k+1) % 5 === 0) flush();
+      }
+      finish((stopped ? 'Stopped. ' : 'Done. ') + tagged + ' sorted' + (unread ? ', ' + unread + ' couldn\u2019t be read (private or blocked pages)' : '') + (noTopic ? ', ' + noTopic + ' had no clear topic' : '') + '.');
+    });
+  }
+
   /* ---------------- link auto-fill (Gemini, sync only) ---------------- */
   var autofillSeq = 0, autofilledFor = '';
   function setAutofillStatus(msg){ var el = $('#autofillStatus'); el.hidden = !msg; el.textContent = msg || ''; }
@@ -2004,7 +2133,15 @@
     setAutofillStatus('\u2728 Looking up this link with Gemini\u2026');
     window.Sync.linkInfo(url, state.topics.map(function(t){ return t.name; })).then(function(res){
       if(seq!==autofillSeq || $('#fieldUrl').value.trim()!==url) return; // person moved on; ignore stale answer
-      if(!res || !res.ok){ setAutofillStatus('Couldn\u2019t read this link \u2014 you can fill in the details yourself.'); return; }
+      if(!res || !res.ok){
+        var hints = {
+          key:'Auto-fill isn\u2019t set up correctly on the server (check the Gemini API key).',
+          model:'The AI model used for auto-fill is unavailable. The server\u2019s model name needs updating.',
+          timeout:'That link took too long to read. You can fill in the details yourself.'
+        };
+        setAutofillStatus((res && hints[res.hint]) || 'Couldn\u2019t read this link \u2014 you can fill in the details yourself.');
+        return;
+      }
       applyAutofill(res.data);
     }, function(err){
       if(seq!==autofillSeq) return;
@@ -2266,6 +2403,7 @@
     else if(act==='import') $('#importFileInput').click();
     else if(act==='import-html') $('#htmlImportFileInput').click();
     else if(act==='clear-all') clearAllData();
+    else if(act==='ai-sort') openAiSort();
     else if(act==='sync-open'){
       if(window.Sync) window.Sync.openPanel();
       else showToast('Sync is still loading, try again in a second');
@@ -2385,8 +2523,28 @@
   refreshSyncUI();
 
   // sync.js is `defer`red: it runs after this script but before DOMContentLoaded.
+  // A link shared into the app (Android Share menu, or an iPhone Shortcut that opens /?url=...) arrives as
+  // query parameters. Open the Save form with it filled in; sync users get the Gemini auto-fill too.
+  function handleIncomingShare(){
+    var params;
+    try{ params = new URLSearchParams(window.location.search); }catch(e){ return; }
+    var rawUrl = params.get('url') || '', text = params.get('text') || '', title = params.get('title') || '';
+    if(!rawUrl && !text && !title) return;
+    var found = firstWebUrl(rawUrl) || firstWebUrl(text) || firstWebUrl(title);
+    try{ window.history.replaceState(null, '', window.location.pathname); }catch(e){}
+    if(!found){ showToast('That share didn\u2019t include a link'); return; }
+    openItemModal();
+    $('#fieldUrl').value = stripTrackingParams(found);
+    $('#fieldUrl').dispatchEvent(new Event('input', {bubbles:true}));
+    if(title && !firstWebUrl(title) && title.length<=140) $('#fieldTitle').value = title;
+    $('#fieldUrl').dispatchEvent(new Event('change', {bubbles:true}));
+  }
   function bootSync(){
+    handleIncomingShare();
     if(window.Sync) window.Sync.init().then(refreshSyncUI, refreshSyncUI);
+  }
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(){}); });
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', bootSync);
   else bootSync();

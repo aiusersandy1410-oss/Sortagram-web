@@ -1,0 +1,10 @@
+# Sortagram — https://sortagram.vercel.app
+User-agent: *
+Allow: /
+
+# Links shared into the app open the Save form; they are not pages worth indexing.
+Disallow: /*?url=
+Disallow: /*?text=
+Disallow: /*?title=
+
+Sitemap: https://sortagram.vercel.app/sitemap.xml

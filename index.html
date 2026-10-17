@@ -2077,6 +2077,7 @@
           errorsInRow = 0;
         }catch(err){
           var m = (err && err.message) || 'connection problem';
+          if(err && err.status===404){ finish('Stopped: your sync server is out of date and has no batch feature. Upload the latest backend files (index.js and linkinfo.js) and redeploy it on Render.'); return; }
           if(err && err.code==='limit'){ finish('Stopped: ' + m + ' ' + tagged + ' sorted.' + byHand); return; }
           if(err && err.code==='unavailable'){ finish('Stopped: ' + m + ' ' + tagged + ' sorted.'); return; }
           errorsInRow++;
